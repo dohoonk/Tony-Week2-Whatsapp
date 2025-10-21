@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert } from 'react-native';
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
 import { collection, onSnapshot, orderBy, query, doc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
@@ -19,6 +19,7 @@ type Message = {
 
 export default function ChatRoomScreen() {
   const route = useRoute<RouteProp<ChatsStackParamList, 'ChatRoom'>>();
+  const navigation = useNavigation();
   const { chatId } = route.params;
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
@@ -27,6 +28,15 @@ export default function ChatRoomScreen() {
   const typingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Set title from chat doc (groupName) if available
+    const chatRef = doc(db, 'chats', chatId);
+    const unsubTitle = onSnapshot(chatRef, (snap) => {
+      const data: any = snap.data() || {};
+      if (data?.type === 'group' && data?.groupName) {
+        // @ts-ignore
+        navigation.setOptions?.({ title: data.groupName });
+      }
+    });
     const ref = collection(db, 'chats', chatId, 'messages');
     const q = query(ref, orderBy('timestamp', 'asc'));
     const unsub = onSnapshot(q, (snap) => {
@@ -35,7 +45,7 @@ export default function ChatRoomScreen() {
       const uid = auth.currentUser?.uid;
       if (uid) updateReadStatus(chatId, uid);
     });
-    return () => unsub();
+    return () => { unsub(); unsubTitle(); };
   }, [chatId]);
 
   // Listen to chat doc for my lastReadAt

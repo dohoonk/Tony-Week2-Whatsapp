@@ -40,6 +40,10 @@ export default function GroupChatModal({ visible, onClose, onCreated }: { visibl
         Alert.alert('Pick at least 2 friends');
         return;
       }
+      if (memberIds.length > 100) {
+        Alert.alert('Too many members', 'Maximum group size is 100');
+        return;
+      }
       let photoURL: string | undefined = undefined;
       const chatId = await createGroupChat(memberIds, groupName || undefined, undefined);
       if (photoUri) {

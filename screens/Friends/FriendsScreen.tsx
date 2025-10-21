@@ -38,7 +38,7 @@ export default function FriendsScreen() {
 
   const findUserByEmail = async (email: string) => {
     const ref = collection(db, 'users');
-    const q = query(ref, where('email', '==', email.trim().toLowerCase()));
+    const q = query(ref, where('emailLower', '==', email.trim().toLowerCase()));
     const snap = await getDocs(q);
     if (snap.empty) return null;
     const docSnap = snap.docs[0];

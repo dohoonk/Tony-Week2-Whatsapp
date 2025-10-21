@@ -35,7 +35,8 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
       if (avatarUri) {
         photoURL = await uploadUserAvatar(uid, avatarUri);
       }
-      await upsertUserProfile(uid, { displayName, photoURL, email: auth.currentUser?.email ?? undefined });
+      const email = auth.currentUser?.email ?? undefined;
+      await upsertUserProfile(uid, { displayName, photoURL, email, emailLower: email?.toLowerCase() });
       onDone();
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'Failed to save');

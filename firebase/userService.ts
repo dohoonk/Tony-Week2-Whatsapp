@@ -5,6 +5,7 @@ export type UserProfile = {
   displayName: string;
   photoURL?: string;
   email?: string;
+  emailLower?: string;
   status?: 'online' | 'offline';
   statusMessage?: string;
   lastSeen?: number;

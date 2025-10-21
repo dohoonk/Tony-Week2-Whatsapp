@@ -15,4 +15,11 @@ export async function uploadUserAvatar(userId: string, uri: string): Promise<str
   return await uploadFromUri(path, uri);
 }
 
+export async function uploadChatImage(chatId: string, uri: string): Promise<string> {
+  const ext = uri.split('.').pop() || 'jpg';
+  const filename = `${Date.now()}.${ext}`;
+  const path = `images/chats/${chatId}/${filename}`;
+  return await uploadFromUri(path, uri);
+}
+
 

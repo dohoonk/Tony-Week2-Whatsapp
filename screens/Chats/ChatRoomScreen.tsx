@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TextInput, Button } from 'react-native';
+import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { auth } from '../../firebase/config';
 import { sendMessage, updateReadStatus } from '../../firebase/chatService';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadChatImage } from '../../firebase/storageService';
 
 type Message = {
   id: string;
@@ -40,6 +42,22 @@ export default function ChatRoomScreen() {
     setText('');
   };
 
+  const onPickImage = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== 'granted') {
+      Alert.alert('Permission required', 'Allow photo library access to send images.');
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+    if (!res.canceled) {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
+      const uri = res.assets[0].uri;
+      const imageUrl = await uploadChatImage(chatId, uri);
+      await sendMessage(chatId, uid, { imageUrl });
+    }
+  };
+
   return (
     <View style={{ flex: 1 }}>
       <FlatList
@@ -48,11 +66,18 @@ export default function ChatRoomScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={{ marginBottom: 8, alignSelf: item.senderId === auth.currentUser?.uid ? 'flex-end' : 'flex-start' }}>
-            <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8 }}>{item.text ?? '📷'}</Text>
+            {item.imageUrl ? (
+              <Image source={{ uri: item.imageUrl }} style={{ width: 200, height: 200, borderRadius: 8 }} />
+            ) : (
+              <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8 }}>{item.text}</Text>
+            )}
           </View>
         )}
       />
-      <View style={{ flexDirection: 'row', padding: 8, gap: 8 }}>
+      <View style={{ flexDirection: 'row', padding: 8, gap: 8, alignItems: 'center' }}>
+        <TouchableOpacity onPress={onPickImage} style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
+          <Text>📎</Text>
+        </TouchableOpacity>
         <TextInput
           value={text}
           onChangeText={setText}

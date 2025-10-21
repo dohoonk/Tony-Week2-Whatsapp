@@ -56,4 +56,23 @@ export async function updateReadStatus(chatId: string, uid: string) {
   await updateDoc(chatRef, { [`readStatus.${uid}`]: now });
 }
 
+export async function openDirectChat(uidA: string, uidB: string) {
+  const members = [uidA, uidB].sort();
+  const chatId = `direct_${members[0]}_${members[1]}`;
+  const chatRef = doc(db, 'chats', chatId);
+  const snap = await getDoc(chatRef);
+  if (!snap.exists()) {
+    const now = Date.now();
+    await setDoc(chatRef, {
+      type: 'direct',
+      members,
+      createdAt: now,
+      lastMessage: '',
+      lastMessageAt: now,
+      readStatus: {},
+    });
+  }
+  return chatId;
+}
+
 

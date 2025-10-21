@@ -5,6 +5,10 @@ import { getUserProfile } from '../../firebase/userService';
 import { listIncomingRequests, listOutgoingRequests, listFriends, sendFriendRequest, acceptFriendRequest, declineFriendRequest, cancelOutgoingRequest } from '../../firebase/friendService';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ChatsStackParamList } from '../../navigation/ChatsStack';
+import { openDirectChat } from '../../firebase/chatService';
 
 export default function FriendsScreen() {
   const [emailToAdd, setEmailToAdd] = useState('');
@@ -14,6 +18,15 @@ export default function FriendsScreen() {
   const [loading, setLoading] = useState(false);
 
   const uid = auth.currentUser?.uid;
+  const navigation = useNavigation<NativeStackNavigationProp<ChatsStackParamList>>();
+
+  const loadProfiles = async (uids: string[]) => {
+    const unique = Array.from(new Set(uids.filter(Boolean)));
+    const entries = await Promise.all(
+      unique.map(async (id) => [id, await getUserProfile(id)])
+    );
+    return Object.fromEntries(entries);
+  };
 
   const refresh = async () => {
     if (!uid) return;
@@ -24,9 +37,15 @@ export default function FriendsScreen() {
         listOutgoingRequests(uid),
         listFriends(uid),
       ]);
-      setIncoming(inc);
-      setOutgoing(out);
-      setFriends(fr);
+      const uidPool = [
+        ...inc.map((i: any) => i.fromUid),
+        ...out.map((o: any) => o.toUid),
+        ...fr.map((f: any) => f.friendUid),
+      ];
+      const uidToProfile = await loadProfiles(uidPool);
+      setIncoming(inc.map((i: any) => ({ ...i, profile: uidToProfile[i.fromUid] })));
+      setOutgoing(out.map((o: any) => ({ ...o, profile: uidToProfile[o.toUid] })));
+      setFriends(fr.map((f: any) => ({ ...f, profile: uidToProfile[f.friendUid] })));
     } finally {
       setLoading(false);
     }
@@ -95,7 +114,12 @@ export default function FriendsScreen() {
         ListEmptyComponent={<Text style={{ color: '#666' }}>No incoming</Text>}
         renderItem={({ item }) => (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
-            <Text>{item.fromUid}</Text>
+            <View>
+              <Text style={{ fontWeight: '600' }}>{item?.profile?.displayName ?? item.fromUid}</Text>
+              {item?.profile?.email ? (
+                <Text style={{ color: '#666' }}>{item.profile.email}</Text>
+              ) : null}
+            </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Button title="Accept" onPress={async () => { await acceptFriendRequest(item.id, item.fromUid, uid!); refresh(); }} />
               <Button title="Decline" onPress={async () => { await declineFriendRequest(item.id); refresh(); }} />
@@ -111,7 +135,12 @@ export default function FriendsScreen() {
         ListEmptyComponent={<Text style={{ color: '#666' }}>No outgoing</Text>}
         renderItem={({ item }) => (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
-            <Text>{item.toUid}</Text>
+            <View>
+              <Text style={{ fontWeight: '600' }}>{item?.profile?.displayName ?? item.toUid}</Text>
+              {item?.profile?.email ? (
+                <Text style={{ color: '#666' }}>{item.profile.email}</Text>
+              ) : null}
+            </View>
             <Button title="Cancel" onPress={async () => { await cancelOutgoingRequest(item.id); refresh(); }} />
           </View>
         )}
@@ -123,9 +152,22 @@ export default function FriendsScreen() {
         keyExtractor={(item) => item.id}
         ListEmptyComponent={<Text style={{ color: '#666' }}>No friends yet</Text>}
         renderItem={({ item }) => (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
-            <Text>{item.friendUid}</Text>
-          </View>
+          <TouchableOpacity
+            onPress={async () => {
+              if (!uid) return;
+              const chatId = await openDirectChat(uid, item.friendUid);
+              navigation.navigate('ChatRoom', { chatId });
+            }}
+            style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}
+          >
+            <View>
+              <Text style={{ fontWeight: '600' }}>{item?.profile?.displayName ?? item.friendUid}</Text>
+              {item?.profile?.email ? (
+                <Text style={{ color: '#666' }}>{item.profile.email}</Text>
+              ) : null}
+            </View>
+            <Text style={{ color: '#0066cc' }}>Start Chat</Text>
+          </TouchableOpacity>
         )}
       />
     </View>

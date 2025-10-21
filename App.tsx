@@ -1,20 +1,50 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import 'react-native-gesture-handler';
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import AppNavigator from './navigation/AppNavigator';
+import './firebase/config';
+import { onAuthStateChanged } from './firebase/authService';
+import LoginScreen from './screens/Auth/LoginScreen';
+import { View, ActivityIndicator } from 'react-native';
+import OnboardingScreen from './screens/Auth/OnboardingScreen';
+import { getUserProfile } from './firebase/userService';
 
 export default function App() {
+  const [ready, setReady] = React.useState(false);
+  const [user, setUser] = React.useState<any>(null);
+  const [needsOnboarding, setNeedsOnboarding] = React.useState(false);
+
+  React.useEffect(() => {
+    const unsub = onAuthStateChanged(async (u) => {
+      setUser(u);
+      if (u?.uid) {
+        const profile = await getUserProfile(u.uid);
+        setNeedsOnboarding(!profile);
+      } else {
+        setNeedsOnboarding(false);
+      }
+      setReady(true);
+    });
+    return () => unsub();
+  }, []);
+
+  if (!ready) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      {!user ? (
+        <LoginScreen />
+      ) : needsOnboarding ? (
+        <OnboardingScreen onDone={() => setNeedsOnboarding(false)} />
+      ) : (
+        <AppNavigator />
+      )}
+    </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ChatsStackParamList } from '../../navigation/ChatsStack';
 import { auth } from '../../firebase/config';
 import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase/config';
@@ -16,6 +19,7 @@ type Chat = {
 export default function ChatsScreen() {
   const [chats, setChats] = useState<Chat[]>([]);
   const uid = auth.currentUser?.uid;
+  const navigation = useNavigation<NativeStackNavigationProp<ChatsStackParamList>>();
 
   useEffect(() => {
     if (!uid) return;
@@ -35,7 +39,10 @@ export default function ChatsScreen() {
         keyExtractor={(item) => item.id}
         ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#666' }}>No chats yet</Text>}
         renderItem={({ item }) => (
-          <TouchableOpacity style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
+          <TouchableOpacity
+            style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}
+            onPress={() => navigation.navigate('ChatRoom', { chatId: item.id })}
+          >
             <Text style={{ fontWeight: '600' }}>{item.type === 'group' ? item.groupName ?? 'Group' : 'Direct chat'}</Text>
             {item.lastMessage ? <Text style={{ color: '#666' }}>{item.lastMessage}</Text> : null}
           </TouchableOpacity>

@@ -3,6 +3,7 @@ import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert } from
 import { auth } from '../../firebase/config';
 import { getUserProfile } from '../../firebase/userService';
 import { listIncomingRequests, listOutgoingRequests, listFriends, sendFriendRequest, acceptFriendRequest, declineFriendRequest, cancelOutgoingRequest } from '../../firebase/friendService';
+import GroupChatModal from './GroupChatModal';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useNavigation } from '@react-navigation/native';
@@ -14,6 +15,7 @@ export default function FriendsScreen() {
   const [outgoing, setOutgoing] = useState<any[]>([]);
   const [friends, setFriends] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [groupVisible, setGroupVisible] = useState(false);
 
   const uid = auth.currentUser?.uid;
   const navigation = useNavigation();
@@ -92,7 +94,11 @@ export default function FriendsScreen() {
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 22, fontWeight: '600', marginBottom: 12 }}>Add friend by email</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <Text style={{ fontSize: 22, fontWeight: '600' }}>Friends</Text>
+        <Button title="Start Group Chat" onPress={() => setGroupVisible(true)} />
+      </View>
+      <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12 }}>Add friend by email</Text>
       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 16 }}>
         <TextInput
           value={emailToAdd}
@@ -168,6 +174,11 @@ export default function FriendsScreen() {
             <Text style={{ color: '#0066cc' }}>Start Chat</Text>
           </TouchableOpacity>
         )}
+      />
+      <GroupChatModal
+        visible={groupVisible}
+        onClose={() => setGroupVisible(false)}
+        onCreated={(chatId) => navigation.navigate('Chats' as never, { screen: 'ChatRoom', params: { chatId } } as never)}
       />
     </View>
   );

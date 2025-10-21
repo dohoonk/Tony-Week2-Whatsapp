@@ -22,4 +22,8 @@ export async function uploadChatImage(chatId: string, uri: string): Promise<stri
   return await uploadFromUri(path, uri);
 }
 
+export async function uploadGroupPhoto(chatId: string, uri: string): Promise<string> {
+  return uploadChatImage(chatId, uri);
+}
+
 

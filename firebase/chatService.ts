@@ -75,4 +75,22 @@ export async function openDirectChat(uidA: string, uidB: string) {
   return chatId;
 }
 
+export async function createGroupChat(members: string[], groupName?: string, groupPhotoURL?: string) {
+  if (members.length < 3) throw new Error('Group requires at least 3 members');
+  if (members.length > 100) throw new Error('Max group size is 100');
+  const chatRef = doc(collection(db, 'chats'));
+  const now = Date.now();
+  await setDoc(chatRef, {
+    type: 'group',
+    members,
+    groupName: groupName || members.join(', '),
+    groupPhotoURL: groupPhotoURL || null,
+    createdAt: now,
+    lastMessage: '',
+    lastMessageAt: now,
+    readStatus: {},
+  });
+  return chatRef.id;
+}
+
 

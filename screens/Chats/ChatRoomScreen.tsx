@@ -8,6 +8,7 @@ import { auth } from '../../firebase/config';
 import { sendMessage, updateReadStatus } from '../../firebase/chatService';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadChatImage } from '../../firebase/storageService';
+import { showLocalNotification } from '../../lib/notifications';
 
 type Message = {
   id: string;
@@ -26,6 +27,7 @@ export default function ChatRoomScreen() {
   const [lastReadAt, setLastReadAt] = useState<number | null>(null);
   const [isSomeoneTyping, setIsSomeoneTyping] = useState(false);
   const typingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const prevCountRef = React.useRef<number>(0);
 
   useEffect(() => {
     // Set title from chat doc (groupName) if available
@@ -44,6 +46,17 @@ export default function ChatRoomScreen() {
       setMessages(list);
       const uid = auth.currentUser?.uid;
       if (uid) updateReadStatus(chatId, uid);
+      // Foreground local notification for new incoming message
+      const prev = prevCountRef.current;
+      if (list.length > prev) {
+        const last = list[list.length - 1];
+        const myUid = auth.currentUser?.uid;
+        if (last && last.senderId !== myUid) {
+          const body = last.text ? String(last.text) : 'Sent a photo';
+          showLocalNotification('New message', body);
+        }
+      }
+      prevCountRef.current = list.length;
     });
     return () => { unsub(); unsubTitle(); };
   }, [chatId]);

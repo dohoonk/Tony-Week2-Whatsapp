@@ -6,8 +6,6 @@ import { listIncomingRequests, listOutgoingRequests, listFriends, sendFriendRequ
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChatsStackParamList } from '../../navigation/ChatsStack';
 import { openDirectChat } from '../../firebase/chatService';
 
 export default function FriendsScreen() {
@@ -18,7 +16,7 @@ export default function FriendsScreen() {
   const [loading, setLoading] = useState(false);
 
   const uid = auth.currentUser?.uid;
-  const navigation = useNavigation<NativeStackNavigationProp<ChatsStackParamList>>();
+  const navigation = useNavigation();
 
   const loadProfiles = async (uids: string[]) => {
     const unique = Array.from(new Set(uids.filter(Boolean)));
@@ -156,7 +154,8 @@ export default function FriendsScreen() {
             onPress={async () => {
               if (!uid) return;
               const chatId = await openDirectChat(uid, item.friendUid);
-              navigation.navigate('ChatRoom', { chatId });
+              // Navigate to nested ChatRoom inside the Chats tab stack
+              navigation.navigate('Chats' as never, { screen: 'ChatRoom', params: { chatId } } as never);
             }}
             style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}
           >

@@ -8,6 +8,9 @@ import LoginScreen from './screens/Auth/LoginScreen';
 import { View, ActivityIndicator } from 'react-native';
 import OnboardingScreen from './screens/Auth/OnboardingScreen';
 import { getUserProfile } from './firebase/userService';
+import { registerForPushNotificationsAsync } from './lib/notifications';
+import { doc, setDoc, arrayUnion } from 'firebase/firestore';
+import { db } from './firebase/config';
 
 export default function App() {
   const [ready, setReady] = React.useState(false);
@@ -20,6 +23,11 @@ export default function App() {
       if (u?.uid) {
         const profile = await getUserProfile(u.uid);
         setNeedsOnboarding(!profile);
+        const token = await registerForPushNotificationsAsync();
+        if (token) {
+          const userRef = doc(db, 'users', u.uid);
+          await setDoc(userRef, { pushTokens: arrayUnion(token) }, { merge: true });
+        }
       } else {
         setNeedsOnboarding(false);
       }

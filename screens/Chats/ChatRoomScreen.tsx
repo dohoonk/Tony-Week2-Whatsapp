@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, doc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { auth } from '../../firebase/config';
 import { sendMessage, updateReadStatus } from '../../firebase/chatService';
@@ -22,6 +22,9 @@ export default function ChatRoomScreen() {
   const { chatId } = route.params;
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
+  const [lastReadAt, setLastReadAt] = useState<number | null>(null);
+  const [isSomeoneTyping, setIsSomeoneTyping] = useState(false);
+  const typingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const ref = collection(db, 'chats', chatId, 'messages');
@@ -31,6 +34,34 @@ export default function ChatRoomScreen() {
       setMessages(list);
       const uid = auth.currentUser?.uid;
       if (uid) updateReadStatus(chatId, uid);
+    });
+    return () => unsub();
+  }, [chatId]);
+
+  // Listen to chat doc for my lastReadAt
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const chatRef = doc(db, 'chats', chatId);
+    const unsub = onSnapshot(chatRef, (snap) => {
+      const data: any = snap.data() || {};
+      const rs = data.readStatus || {};
+      setLastReadAt(rs[uid] ?? null);
+    });
+    return () => unsub();
+  }, [chatId]);
+
+  // Typing indicator listeners
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    const typingRef = collection(db, 'chats', chatId, 'typing');
+    const unsub = onSnapshot(typingRef, (snap) => {
+      let someone = false;
+      snap.forEach((d) => {
+        const data: any = d.data();
+        if (d.id !== uid && data?.typing) someone = true;
+      });
+      setIsSomeoneTyping(someone);
     });
     return () => unsub();
   }, [chatId]);
@@ -62,25 +93,55 @@ export default function ChatRoomScreen() {
     <View style={{ flex: 1 }}>
       <FlatList
         contentContainerStyle={{ padding: 16 }}
-        data={messages}
+        data={(function buildData() {
+          if (!lastReadAt) return messages;
+          const idx = messages.findIndex((m) => m.timestamp > (lastReadAt as number));
+          if (idx <= 0) return messages;
+          const arr: any[] = [...messages];
+          arr.splice(idx, 0, { id: 'unread-divider', divider: true });
+          return arr;
+        })()}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={{ marginBottom: 8, alignSelf: item.senderId === auth.currentUser?.uid ? 'flex-end' : 'flex-start' }}>
-            {item.imageUrl ? (
-              <Image source={{ uri: item.imageUrl }} style={{ width: 200, height: 200, borderRadius: 8 }} />
-            ) : (
-              <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8 }}>{item.text}</Text>
-            )}
-          </View>
-        )}
+        renderItem={({ item }: any) => {
+          if (item.divider) {
+            return (
+              <View style={{ alignItems: 'center', marginVertical: 8 }}>
+                <Text style={{ color: '#666' }}>New messages</Text>
+              </View>
+            );
+          }
+          return (
+            <View style={{ marginBottom: 8, alignSelf: item.senderId === auth.currentUser?.uid ? 'flex-end' : 'flex-start' }}>
+              {item.imageUrl ? (
+                <Image source={{ uri: item.imageUrl }} style={{ width: 200, height: 200, borderRadius: 8 }} />
+              ) : (
+                <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8 }}>{item.text}</Text>
+              )}
+            </View>
+          );
+        }}
       />
+      {isSomeoneTyping ? (
+        <Text style={{ textAlign: 'center', color: '#888', marginBottom: 4 }}>Typing…</Text>
+      ) : null}
       <View style={{ flexDirection: 'row', padding: 8, gap: 8, alignItems: 'center' }}>
         <TouchableOpacity onPress={onPickImage} style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
           <Text>📎</Text>
         </TouchableOpacity>
         <TextInput
           value={text}
-          onChangeText={setText}
+          onChangeText={(t) => {
+            setText(t);
+            const uid = auth.currentUser?.uid;
+            if (!uid) return;
+            // mark typing true and debounce to false
+            const typingDoc = doc(db, 'chats', chatId, 'typing', uid);
+            import('firebase/firestore').then(({ setDoc }) => setDoc(typingDoc, { typing: true, updatedAt: Date.now() }, { merge: true }));
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => {
+              import('firebase/firestore').then(({ setDoc }) => setDoc(typingDoc, { typing: false, updatedAt: Date.now() }, { merge: true }));
+            }, 1500);
+          }}
           placeholder="Type a message"
           style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 }}
         />

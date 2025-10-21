@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import ChatsScreen from '../screens/Chats/ChatsScreen';
+import ChatsStack from './ChatsStack';
 import FriendsScreen from '../screens/Friends/FriendsScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 
@@ -26,7 +26,7 @@ export default function AppNavigator() {
         },
       })}
     >
-      <Tab.Screen name="Chats" component={ChatsScreen} />
+      <Tab.Screen name="Chats" component={ChatsStack} options={{ headerShown: false }} />
       <Tab.Screen name="Friends" component={FriendsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

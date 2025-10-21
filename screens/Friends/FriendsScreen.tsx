@@ -38,11 +38,22 @@ export default function FriendsScreen() {
 
   const findUserByEmail = async (email: string) => {
     const ref = collection(db, 'users');
-    const q = query(ref, where('emailLower', '==', email.trim().toLowerCase()));
-    const snap = await getDocs(q);
-    if (snap.empty) return null;
-    const docSnap = snap.docs[0];
-    return { uid: docSnap.id, ...docSnap.data() } as any;
+    const normalized = email.trim().toLowerCase();
+    // Try emailLower first
+    let q1 = query(ref, where('emailLower', '==', normalized));
+    let snap = await getDocs(q1);
+    if (!snap.empty) {
+      const docSnap = snap.docs[0];
+      return { uid: docSnap.id, ...docSnap.data() } as any;
+    }
+    // Fallback: some profiles may only have 'email'
+    let q2 = query(ref, where('email', '==', normalized));
+    snap = await getDocs(q2);
+    if (!snap.empty) {
+      const docSnap = snap.docs[0];
+      return { uid: docSnap.id, ...docSnap.data() } as any;
+    }
+    return null;
   };
 
   const onSendRequest = async () => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
 import { collection, onSnapshot, orderBy, query, doc } from 'firebase/firestore';
@@ -28,6 +28,7 @@ export default function ChatRoomScreen() {
   const [isSomeoneTyping, setIsSomeoneTyping] = useState(false);
   const typingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const prevCountRef = React.useRef<number>(0);
+  const listRef = React.useRef<FlatList<any>>(null);
 
   useEffect(() => {
     // Set title from chat doc (groupName) if available
@@ -61,6 +62,11 @@ export default function ChatRoomScreen() {
         if (last && last.senderId !== myUid) {
           const body = last.text ? String(last.text) : 'Sent a photo';
           showLocalNotification('New message', body);
+        } else if (last && last.senderId === myUid) {
+          // If I just sent a message, scroll to bottom to reveal it
+          requestAnimationFrame(() => {
+            listRef.current?.scrollToEnd?.({ animated: true });
+          });
         }
       }
       prevCountRef.current = list.length;
@@ -120,9 +126,11 @@ export default function ChatRoomScreen() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <FlatList
-        contentContainerStyle={{ padding: 16 }}
+        ref={listRef}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
         data={(function buildData() {
           if (!lastReadAt) return messages;
           const idx = messages.findIndex((m) => m.timestamp > (lastReadAt as number));
@@ -132,6 +140,7 @@ export default function ChatRoomScreen() {
           return arr;
         })()}
         keyExtractor={(item) => item.id}
+        keyboardShouldPersistTaps="handled"
         renderItem={({ item }: any) => {
           if (item.divider) {
             return (
@@ -177,7 +186,7 @@ export default function ChatRoomScreen() {
         />
         <Button title="Send" onPress={onSend} />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -3,8 +3,11 @@ import Constants from 'expo-constants';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
+    // iOS 16+: use banner/list flags; keep alert for backward compat
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldShowAlert: true,
-    shouldPlaySound: false,
+    shouldPlaySound: true,
     shouldSetBadge: false,
   }),
 });

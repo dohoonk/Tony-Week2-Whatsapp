@@ -180,7 +180,7 @@ export default function ChatRoomScreen() {
               ) : (
                 <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8 }}>{item.text}</Text>
               )}
-              {isMine ? (
+              {isMine && unread > 0 ? (
                 <View style={{ alignSelf: 'flex-end', marginTop: 2 }}>
                   <Text style={{ fontSize: 10, color: '#999' }}>{unread}</Text>
                 </View>

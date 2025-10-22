@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
-import { collection, onSnapshot, orderBy, query, doc } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { auth } from '../../firebase/config';
 import { sendMessage, updateReadStatus } from '../../firebase/chatService';
@@ -34,6 +34,15 @@ export default function ChatRoomScreen() {
   const atBottomRef = React.useRef<boolean>(true);
   const [readMap, setReadMap] = useState<Record<string, number>>({});
   const [members, setMembers] = useState<string[]>([]);
+  const [profileCache, setProfileCache] = useState<Record<string, any>>({});
+
+  const ensureProfile = async (uid: string) => {
+    if (profileCache[uid]) return profileCache[uid];
+    const snap = await getDoc(doc(db, 'users', uid));
+    const data = snap.exists() ? snap.data() : null;
+    setProfileCache((c) => ({ ...c, [uid]: data }));
+    return data;
+  };
 
   useEffect(() => {
     // Set title from chat doc (groupName) if available
@@ -190,14 +199,24 @@ export default function ChatRoomScreen() {
               </View>
             );
           }
+          const sender = profileCache[item.senderId];
+          if (!sender) ensureProfile(item.senderId);
           return (
-            <View style={{ marginBottom: 8, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
-              {item.imageUrl ? (
-                <Image source={{ uri: item.imageUrl }} style={{ width: Math.min(200, BUBBLE_MAX), height: 200, borderRadius: 8 }} />
-              ) : (
-                <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1 }}>{item.text}</Text>
-              )}
-              {timeStr ? <Text style={{ fontSize: 11, color: '#666' }}>{timeStr}</Text> : null}
+            <View style={{ marginBottom: 8, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+              <Image source={sender?.photoURL ? { uri: sender.photoURL } : undefined} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#ddd' }} />
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, maxWidth: BUBBLE_MAX }}>
+                <View style={{ maxWidth: BUBBLE_MAX }}>
+                  {sender?.displayName ? (
+                    <Text style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>{sender.displayName}</Text>
+                  ) : null}
+                  {item.imageUrl ? (
+                    <Image source={{ uri: item.imageUrl }} style={{ width: Math.min(200, BUBBLE_MAX), height: 200, borderRadius: 8 }} />
+                  ) : (
+                    <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1 }}>{item.text}</Text>
+                  )}
+                </View>
+                {timeStr ? <Text style={{ fontSize: 11, color: '#666' }}>{timeStr}</Text> : null}
+              </View>
             </View>
           );
         }}

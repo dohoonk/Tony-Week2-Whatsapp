@@ -31,10 +31,16 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 }
 
-export async function showLocalNotification(title: string, body: string) {
+export async function showLocalNotification(title: string, body: string, data?: Record<string, any>, imageUrl?: string | null) {
   try {
     await Notifications.scheduleNotificationAsync({
-      content: { title, body },
+      content: {
+        title,
+        body,
+        data: data ?? {},
+        // iOS inline image (shows in expanded list/detail)
+        attachments: imageUrl ? [{ identifier: 'avatar', url: imageUrl }] : undefined,
+      },
       trigger: null,
     });
   } catch {

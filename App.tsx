@@ -11,11 +11,25 @@ import { getUserProfile } from './firebase/userService';
 import { registerForPushNotificationsAsync } from './lib/notifications';
 import { doc, setDoc, arrayUnion, collection, query, where, onSnapshot, orderBy, limit, getDoc } from 'firebase/firestore';
 import { db } from './firebase/config';
+import * as Notifications from 'expo-notifications';
+import { NavigationContainerRefWithCurrent } from '@react-navigation/native';
 
 export default function App() {
   const [ready, setReady] = React.useState(false);
   const [user, setUser] = React.useState<any>(null);
   const [needsOnboarding, setNeedsOnboarding] = React.useState(false);
+  const navRef = React.useRef<any>(null);
+
+  React.useEffect(() => {
+    // Handle tapping on local notification to navigate to chat
+    const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
+      const chatId = resp.notification.request.content.data?.chatId as string | undefined;
+      if (chatId && navRef.current) {
+        navRef.current.navigate('Chats', { screen: 'ChatRoom', params: { chatId } });
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   React.useEffect(() => {
     const unsub = onAuthStateChanged(async (u) => {
@@ -63,10 +77,19 @@ export default function App() {
               // Build title from chat data
               let title = 'New message';
               const chatData: any = (await getDoc(doc(db, 'chats', chatId))).data() || {};
-              if (chatData?.type === 'group' && chatData?.groupName) title = chatData.groupName;
+              let avatar: string | null = null;
+              if (chatData?.type === 'group' && chatData?.groupName) {
+                title = chatData.groupName;
+              } else {
+                // direct chat: get sender profile for name/avatar
+                const senderSnap = await getDoc(doc(db, 'users', m.senderId));
+                const sp = senderSnap.data() as any;
+                title = sp?.displayName || 'New message';
+                avatar = sp?.photoURL || null;
+              }
               const body = m.text ? String(m.text) : 'Sent a photo';
               const { showLocalNotification } = await import('./lib/notifications');
-              showLocalNotification(title, body);
+              showLocalNotification(title, body, { chatId }, avatar);
             });
             perChatSubs.set(chatId, unsubLatest);
           });
@@ -106,7 +129,7 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navRef}>
       {!user ? (
         <LoginScreen />
       ) : needsOnboarding ? (

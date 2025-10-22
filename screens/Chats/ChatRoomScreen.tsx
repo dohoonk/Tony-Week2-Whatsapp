@@ -29,6 +29,10 @@ export default function ChatRoomScreen() {
   const typingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const prevCountRef = React.useRef<number>(0);
   const listRef = React.useRef<FlatList<any>>(null);
+  const hasLoadedRef = React.useRef<boolean>(false);
+  const atBottomRef = React.useRef<boolean>(true);
+  const [readMap, setReadMap] = useState<Record<string, number>>({});
+  const [members, setMembers] = useState<string[]>([]);
 
   useEffect(() => {
     // Set title from chat doc (groupName) if available
@@ -46,6 +50,8 @@ export default function ChatRoomScreen() {
           ),
         });
       }
+      setReadMap(data?.readStatus || {});
+      setMembers(Array.isArray(data?.members) ? data.members : []);
     });
     const ref = collection(db, 'chats', chatId, 'messages');
     const q = query(ref, orderBy('timestamp', 'asc'));
@@ -53,7 +59,10 @@ export default function ChatRoomScreen() {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
       setMessages(list);
       const uid = auth.currentUser?.uid;
-      if (uid) updateReadStatus(chatId, uid);
+      // Only mark read when we've loaded once and are at (or near) the bottom
+      if (uid && hasLoadedRef.current && atBottomRef.current) {
+        updateReadStatus(chatId, uid);
+      }
       // Foreground local notification for new incoming message
       const prev = prevCountRef.current;
       if (list.length > prev) {
@@ -70,6 +79,7 @@ export default function ChatRoomScreen() {
         }
       }
       prevCountRef.current = list.length;
+      if (!hasLoadedRef.current) hasLoadedRef.current = true;
     });
     return () => { unsub(); unsubTitle(); };
   }, [chatId]);
@@ -140,6 +150,11 @@ export default function ChatRoomScreen() {
           return arr;
         })()}
         keyExtractor={(item) => item.id}
+        onScroll={(e) => {
+          const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+          const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+          atBottomRef.current = distanceFromBottom < 24; // near bottom
+        }}
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }: any) => {
           if (item.divider) {
@@ -149,13 +164,27 @@ export default function ChatRoomScreen() {
               </View>
             );
           }
+          const myUid = auth.currentUser?.uid;
+          const isMine = item.senderId === myUid;
+          // unread count for recipients (exclude sender)
+          const otherMembers = members.filter((id) => id !== item.senderId);
+          const readers = otherMembers.filter((id) => {
+            const t = (readMap || {})[id];
+            return typeof t === 'number' && t >= (item.timestamp || 0);
+          }).length;
+          const unread = Math.max(otherMembers.length - readers, 0);
           return (
-            <View style={{ marginBottom: 8, alignSelf: item.senderId === auth.currentUser?.uid ? 'flex-end' : 'flex-start' }}>
+            <View style={{ marginBottom: 8, alignSelf: isMine ? 'flex-end' : 'flex-start' }}>
               {item.imageUrl ? (
                 <Image source={{ uri: item.imageUrl }} style={{ width: 200, height: 200, borderRadius: 8 }} />
               ) : (
                 <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8 }}>{item.text}</Text>
               )}
+              {isMine ? (
+                <View style={{ alignSelf: 'flex-end', marginTop: 2 }}>
+                  <Text style={{ fontSize: 10, color: '#999' }}>{unread}</Text>
+                </View>
+              ) : null}
             </View>
           );
         }}

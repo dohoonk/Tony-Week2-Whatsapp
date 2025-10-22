@@ -121,13 +121,22 @@ export default function App() {
         const cq = query(chatsRef, where('members', 'array-contains', u.uid));
         const perChatSubs = new Map<string, () => void>();
         const lastNotified = new Map<string, number>();
-        const unsubChats = onSnapshot(cq, (chatsSnap) => {
+        const unsubChats = onSnapshot(cq, async (chatsSnap) => {
           const currentIds = new Set<string>();
           chatsSnap.forEach((c) => currentIds.add(c.id));
 
           // Add listeners for newly discovered chats
-          currentIds.forEach((chatId) => {
+          for (const chatId of Array.from(currentIds)) {
             if (perChatSubs.has(chatId)) return;
+            // Initialize baseline from chat's lastMessageAt if available
+            try {
+              const chatSnap = await getDoc(doc(db, 'chats', chatId));
+              const cd: any = chatSnap.data() || {};
+              const lm = cd?.lastMessageAt;
+              const base = typeof lm === 'number' ? lm : (lm?.toMillis?.() ?? Date.now());
+              if (!lastNotified.has(chatId)) lastNotified.set(chatId, base);
+              try { if (__DEV__) console.log('Notif attach for chat', chatId, 'baseline', base); } catch {}
+            } catch {}
             const latestRef = query(
               collection(db, 'chats', chatId, 'messages'),
               orderBy('timestamp', 'desc'),
@@ -138,13 +147,13 @@ export default function App() {
               const m: any = msgSnap.docs[0].data();
               if (!m?.timestamp) return;
               // Initialize baseline to 'now' so the next incoming message triggers immediately
-              if (!lastNotified.has(chatId)) {
-                lastNotified.set(chatId, Date.now());
-              }
+              if (!lastNotified.has(chatId)) lastNotified.set(chatId, Date.now());
               const prev = lastNotified.get(chatId) ?? 0;
-              if (m.timestamp <= prev) return;
-              lastNotified.set(chatId, m.timestamp);
-              if (m.senderId === u.uid) return;
+              const msgTs = typeof m.timestamp === 'number' ? m.timestamp : (m.timestamp?.toMillis?.() ?? 0);
+              const willNotify = msgTs > prev && m.senderId !== u.uid;
+              try { if (__DEV__) console.log('Notif check', { chatId, msgTs, prev, senderId: m.senderId, willNotify }); } catch {}
+              if (!willNotify) return;
+              lastNotified.set(chatId, msgTs);
 
               // Build title from chat data
               let title = 'New message';
@@ -162,7 +171,7 @@ export default function App() {
               showLocalNotification(title, body, { chatId });
             });
             perChatSubs.set(chatId, unsubLatest);
-          });
+          }
 
           // Remove listeners for chats no longer present
           for (const [chatId, unsub] of Array.from(perChatSubs.entries())) {

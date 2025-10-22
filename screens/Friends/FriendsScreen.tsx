@@ -54,8 +54,34 @@ export default function FriendsScreen() {
     }
   };
 
+  // Real-time listeners for friend requests and friends list
   useEffect(() => {
-    refresh();
+    if (!uid) return;
+    const incQ = query(collection(db, 'friendRequests'), where('toUid', '==', uid), where('status', '==', 'pending'));
+    const outQ = query(collection(db, 'friendRequests'), where('fromUid', '==', uid), where('status', '==', 'pending'));
+    const frRef = collection(db, 'friends', uid, 'list');
+
+    const unsubInc = onSnapshot(incQ, async (snap) => {
+      const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      const uidToProfile = await loadProfiles(rows.map((r) => r.fromUid));
+      setIncoming(rows.map((r: any) => ({ ...r, profile: uidToProfile[r.fromUid] })));
+    });
+    const unsubOut = onSnapshot(outQ, async (snap) => {
+      const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      const uidToProfile = await loadProfiles(rows.map((r) => r.toUid));
+      setOutgoing(rows.map((r: any) => ({ ...r, profile: uidToProfile[r.toUid] })));
+    });
+    const unsubFr = onSnapshot(frRef, async (snap) => {
+      const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      const uidToProfile = await loadProfiles(rows.map((r) => r.friendUid));
+      setFriends(rows.map((r: any) => ({ ...r, profile: uidToProfile[r.friendUid] })));
+    });
+
+    return () => {
+      unsubInc();
+      unsubOut();
+      unsubFr();
+    };
   }, [uid]);
 
   // Smoke-test: ensure my presence doc exists when viewing Friends

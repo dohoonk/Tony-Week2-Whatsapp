@@ -16,6 +16,7 @@ type Message = {
   text?: string | null;
   imageUrl?: string | null;
   timestamp: number;
+  temp?: boolean;
 };
 
 export default function ChatRoomScreen() {
@@ -42,6 +43,8 @@ export default function ChatRoomScreen() {
   const [hasMoreOlder, setHasMoreOlder] = useState<boolean>(true);
   const [loadingOlder, setLoadingOlder] = useState<boolean>(false);
   const lastMarkedRef = React.useRef<number>(0);
+  const outboxRef = React.useRef<Record<string, { kind: 'text' | 'image'; text?: string; uri?: string }>>({});
+  const retryTimerRef = React.useRef<any>(null);
 
   const ensureProfile = async (uid: string) => {
     if (profileCache[uid]) return profileCache[uid];
@@ -116,6 +119,45 @@ export default function ChatRoomScreen() {
     return () => { unsub(); unsubTitle(); };
   }, [chatId]);
 
+  useEffect(() => {
+    return () => {
+      if (retryTimerRef.current) {
+        clearInterval(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+      outboxRef.current = {};
+    };
+  }, []);
+
+  const startRetryLoop = () => {
+    if (retryTimerRef.current) return;
+    retryTimerRef.current = setInterval(async () => {
+      const entries = Object.entries(outboxRef.current);
+      if (entries.length === 0) return;
+      const [tempId, job] = entries[0];
+      try {
+        const uid = auth.currentUser?.uid;
+        if (!uid) return;
+        if (job.kind === 'text' && job.text) {
+          await sendMessage(chatId, uid, { text: job.text });
+        } else if (job.kind === 'image' && job.uri) {
+          const imageUrl = await uploadChatImage(chatId, job.uri);
+          await sendMessage(chatId, uid, { imageUrl });
+        }
+        // success: remove temp and job
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        delete outboxRef.current[tempId];
+        // if queue empty, stop timer
+        if (Object.keys(outboxRef.current).length === 0 && retryTimerRef.current) {
+          clearInterval(retryTimerRef.current);
+          retryTimerRef.current = null;
+        }
+      } catch (e) {
+        // keep job; will retry next tick
+      }
+    }, 4000);
+  };
+
   // Compute the index of the first unread message (in raw messages)
   const firstUnreadIndex = React.useMemo(() => {
     if (!lastReadAt || messages.length === 0) return null;
@@ -181,8 +223,26 @@ export default function ChatRoomScreen() {
   const onSend = async () => {
     const uid = auth.currentUser?.uid;
     if (!uid || !text.trim()) return;
-    await sendMessage(chatId, uid, { text: text.trim() });
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: Message = {
+      id: tempId,
+      senderId: uid,
+      text: text.trim(),
+      timestamp: Date.now(),
+      temp: true,
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    const toSend = text.trim();
     setText('');
+    try {
+      await sendMessage(chatId, uid, { text: toSend });
+      // Remove temp; real message arrives via snapshot
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+    } catch (e) {
+      // Queue for retry on reconnect
+      outboxRef.current[tempId] = { kind: 'text', text: toSend };
+      startRetryLoop();
+    }
     // Ensure we reveal the just-sent message immediately
     requestAnimationFrame(() => {
       listRef.current?.scrollToEnd?.({ animated: true });
@@ -201,8 +261,23 @@ export default function ChatRoomScreen() {
       const uid = auth.currentUser?.uid;
       if (!uid) return;
       const uri = res.assets[0].uri;
-      const imageUrl = await uploadChatImage(chatId, uri);
-      await sendMessage(chatId, uid, { imageUrl });
+      const tempId = `temp-img-${Date.now()}`;
+      const optimistic: Message = {
+        id: tempId,
+        senderId: uid,
+        imageUrl: uri,
+        timestamp: Date.now(),
+        temp: true,
+      };
+      setMessages((prev) => [...prev, optimistic]);
+      try {
+        const imageUrl = await uploadChatImage(chatId, uri);
+        await sendMessage(chatId, uid, { imageUrl });
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      } catch (e) {
+        outboxRef.current[tempId] = { kind: 'image', uri };
+        startRetryLoop();
+      }
       requestAnimationFrame(() => {
         listRef.current?.scrollToEnd?.({ animated: true });
         atBottomRef.current = true;
@@ -312,7 +387,7 @@ export default function ChatRoomScreen() {
                 {unread > 0 ? (
                   <Text style={{ fontSize: 10, color: '#999' }}>{unread}</Text>
                 ) : null}
-                {timeStr ? <Text style={{ fontSize: 11, color: '#666' }}>{timeStr}</Text> : null}
+                {item.temp ? <Text style={{ fontSize: 11, color: '#999' }}>sending…</Text> : (timeStr ? <Text style={{ fontSize: 11, color: '#666' }}>{timeStr}</Text> : null)}
                 {item.imageUrl ? (
                   <Image source={{ uri: item.imageUrl }} style={{ width: Math.min(200, BUBBLE_MAX), height: 200, borderRadius: 8 }} />
                 ) : (

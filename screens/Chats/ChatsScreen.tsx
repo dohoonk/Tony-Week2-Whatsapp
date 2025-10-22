@@ -7,6 +7,7 @@ import { auth } from '../../firebase/config';
 import { collection, onSnapshot, query, where, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { Image } from 'react-native';
+import GroupAvatar from '../../components/GroupAvatar';
 import { formatLastMessageTime } from '../../lib/utils/formatTimestamp';
 
 type Chat = {
@@ -53,6 +54,7 @@ export default function ChatsScreen() {
         renderItem={({ item }) => {
           let title = item.type === 'group' ? item.groupName ?? 'Group' : 'Direct chat';
           let avatar: any = null;
+          let groupMemberPhotos: string[] | null = null;
           if (item.type === 'direct' && uid) {
             const partnerId = item.members.find((m) => m !== uid)!;
             const partner = partnerCache[partnerId];
@@ -62,13 +64,31 @@ export default function ChatsScreen() {
             } else {
               ensurePartner(partnerId);
             }
+          } else if (item.type === 'group' && uid) {
+            // Auto-generate name if missing
+            if (!item.groupName) {
+              const others = item.members.filter((m) => m !== uid).slice(0, 3);
+              Promise.all(others.map((id) => ensurePartner(id))).then((ps) => {
+                const name = ps.map((p: any) => p?.displayName).filter(Boolean).join(', ');
+                if (name) {
+                  const { doc: d, updateDoc } = require('firebase/firestore');
+                  updateDoc(d(require('../../firebase/config').db, 'chats', item.id), { groupName: name });
+                }
+              });
+            }
+            groupMemberPhotos = item.members.filter((m) => m !== uid).slice(0, 4).map((id) => partnerCache[id]?.photoURL).filter(Boolean);
+            item.members.filter((m) => m !== uid).slice(0, 4).forEach((id) => {
+              if (!partnerCache[id]) ensurePartner(id);
+            });
           }
           return (
             <TouchableOpacity
               style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', alignItems: 'center', gap: 12 }}
               onPress={() => navigation.navigate('ChatRoom', { chatId: item.id })}
             >
-              {avatar ? (
+              {item.type === 'group' ? (
+                <GroupAvatar uris={groupMemberPhotos || []} size={40} />
+              ) : avatar ? (
                 <Image source={{ uri: avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
               ) : (
                 <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#eee' }} />

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
 import { collection, onSnapshot, orderBy, query, doc } from 'firebase/firestore';
@@ -19,6 +19,7 @@ type Message = {
 };
 
 export default function ChatRoomScreen() {
+  const BUBBLE_MAX = Math.round(Dimensions.get('window').width * 0.7);
   const route = useRoute<RouteProp<ChatsStackParamList, 'ChatRoom'>>();
   const navigation = useNavigation();
   const { chatId } = route.params;
@@ -173,18 +174,30 @@ export default function ChatRoomScreen() {
             return typeof t === 'number' && t >= (item.timestamp || 0);
           }).length;
           const unread = Math.max(otherMembers.length - readers, 0);
-          return (
-            <View style={{ marginBottom: 8, alignSelf: isMine ? 'flex-end' : 'flex-start' }}>
-              {item.imageUrl ? (
-                <Image source={{ uri: item.imageUrl }} style={{ width: 200, height: 200, borderRadius: 8 }} />
-              ) : (
-                <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8 }}>{item.text}</Text>
-              )}
-              {isMine && unread > 0 ? (
-                <View style={{ alignSelf: 'flex-end', marginTop: 2 }}>
+          const timeStr = item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+          if (isMine) {
+            return (
+              <View style={{ marginBottom: 8, alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
+                {unread > 0 ? (
                   <Text style={{ fontSize: 10, color: '#999' }}>{unread}</Text>
-                </View>
-              ) : null}
+                ) : null}
+                {timeStr ? <Text style={{ fontSize: 11, color: '#666' }}>{timeStr}</Text> : null}
+                {item.imageUrl ? (
+                  <Image source={{ uri: item.imageUrl }} style={{ width: Math.min(200, BUBBLE_MAX), height: 200, borderRadius: 8 }} />
+                ) : (
+                  <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1 }}>{item.text}</Text>
+                )}
+              </View>
+            );
+          }
+          return (
+            <View style={{ marginBottom: 8, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
+              {item.imageUrl ? (
+                <Image source={{ uri: item.imageUrl }} style={{ width: Math.min(200, BUBBLE_MAX), height: 200, borderRadius: 8 }} />
+              ) : (
+                <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1 }}>{item.text}</Text>
+              )}
+              {timeStr ? <Text style={{ fontSize: 11, color: '#666' }}>{timeStr}</Text> : null}
             </View>
           );
         }}

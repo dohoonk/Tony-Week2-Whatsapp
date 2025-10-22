@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
+import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions, AppState } from 'react-native';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
 import { collection, onSnapshot, orderBy, query, doc, getDoc, limit, startAfter, getDocs } from 'firebase/firestore';
@@ -155,8 +155,39 @@ export default function ChatRoomScreen() {
       } catch (e) {
         // keep job; will retry next tick
       }
-    }, 4000);
+    }, 1000);
   };
+
+  const flushOutboxNow = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const entries = Object.entries(outboxRef.current);
+    for (const [tempId, job] of entries) {
+      try {
+        if (job.kind === 'text' && job.text) {
+          await sendMessage(chatId, uid, { text: job.text });
+        } else if (job.kind === 'image' && job.uri) {
+          const imageUrl = await uploadChatImage(chatId, job.uri);
+          await sendMessage(chatId, uid, { imageUrl });
+        }
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        delete outboxRef.current[tempId];
+      } catch (e) {
+        // stop immediate loop on first failure; timer will retry
+        break;
+      }
+    }
+  };
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        flushOutboxNow();
+        startRetryLoop();
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // Compute the index of the first unread message (in raw messages)
   const firstUnreadIndex = React.useMemo(() => {

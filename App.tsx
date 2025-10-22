@@ -5,7 +5,7 @@ import AppNavigator from './navigation/AppNavigator';
 import './firebase/config';
 import { onAuthStateChanged } from './firebase/authService';
 import LoginScreen from './screens/Auth/LoginScreen';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, AppState, Platform, ToastAndroid } from 'react-native';
 import OnboardingScreen from './screens/Auth/OnboardingScreen';
 import { getUserProfile } from './firebase/userService';
 import { registerForPushNotificationsAsync } from './lib/notifications';
@@ -19,6 +19,14 @@ export default function App() {
   const [user, setUser] = React.useState<any>(null);
   const [needsOnboarding, setNeedsOnboarding] = React.useState(false);
   const navRef = React.useRef<any>(null);
+  const debugPresence = (message: string) => {
+    if (__DEV__) {
+      try { console.log(message); } catch {}
+      if (Platform.OS === 'android') {
+        try { ToastAndroid.show(message, ToastAndroid.SHORT); } catch {}
+      }
+    }
+  };
 
   React.useEffect(() => {
     // Handle tapping on local notification to navigate to chat
@@ -31,17 +39,82 @@ export default function App() {
     return () => sub.remove();
   }, []);
 
+  // Log that app mounted (dev only)
+  React.useEffect(() => {
+    try { if (__DEV__) console.log('App mounted: dev logging enabled'); } catch {}
+  }, []);
+
+  // Debug: show Firebase projectId in Metro logs
+  React.useEffect(() => {
+    try {
+      if (__DEV__) console.log('Firebase projectId', (db as any).app?.options?.projectId);
+    } catch {}
+  }, []);
+
   React.useEffect(() => {
     const unsub = onAuthStateChanged(async (u) => {
       setUser(u);
+      try { if (__DEV__) console.log('Auth state changed. uid =', u?.uid || 'null'); } catch {}
       if (u?.uid) {
-        const profile = await getUserProfile(u.uid);
-        setNeedsOnboarding(!profile);
-        const token = await registerForPushNotificationsAsync();
-        if (token) {
-          const userRef = doc(db, 'users', u.uid);
-          await setDoc(userRef, { pushTokens: arrayUnion(token) }, { merge: true });
+        try {
+          const profile = await getUserProfile(u.uid);
+          setNeedsOnboarding(!profile);
+        } catch (e) {
+          try { console.log('getUserProfile error:', (e as any)?.message || e); } catch {}
         }
+        try {
+          const token = await registerForPushNotificationsAsync();
+          if (token) {
+            const userRef = doc(db, 'users', u.uid);
+            await setDoc(userRef, { pushTokens: arrayUnion(token) }, { merge: true });
+          }
+        } catch (e) {
+          try { console.log('Push token register error:', (e as any)?.message || e); } catch {}
+        }
+        // Presence: mark online and keep heartbeat while app active
+        const presenceRef = doc(db, 'presence', u.uid);
+        const userPresenceUserRef = doc(db, 'users', u.uid);
+        const setOnline = async () => {
+          const now = Date.now();
+          try {
+            debugPresence('Presence write start: online');
+            await Promise.all([
+              setDoc(presenceRef, { state: 'online', online: true, lastChanged: now }, { merge: true }),
+              setDoc(userPresenceUserRef, { status: 'online', online: true, lastSeen: now, updatedAt: now }, { merge: true }),
+            ]);
+            debugPresence('Presence: online');
+          } catch (e: any) {
+            try { console.log('Presence write error (online):', e?.message || e); } catch {}
+          }
+        };
+        const setOffline = async () => {
+          const now = Date.now();
+          try {
+            debugPresence('Presence write start: offline');
+            await Promise.all([
+              setDoc(presenceRef, { state: 'offline', online: false, lastChanged: now }, { merge: true }),
+              setDoc(userPresenceUserRef, { status: 'offline', online: false, lastSeen: now, updatedAt: now }, { merge: true }),
+            ]);
+            debugPresence('Presence: offline');
+          } catch (e: any) {
+            try { console.log('Presence write error (offline):', e?.message || e); } catch {}
+          }
+        };
+        await setOnline();
+        let presenceInterval: any = setInterval(setOnline, 10000);
+        const appStateSub = AppState.addEventListener('change', (state) => {
+          try { if (__DEV__) console.log('AppState change:', state); } catch {}
+          if (state === 'active') {
+            setOnline();
+            if (!presenceInterval) presenceInterval = setInterval(setOnline, 10000);
+          } else if (state === 'background' || state === 'inactive') {
+            setOffline();
+            if (presenceInterval) {
+              clearInterval(presenceInterval);
+              presenceInterval = null;
+            }
+          }
+        });
         // Global foreground notification for any new messages
         // Subscribe to the user's chats and watch the latest message
         const chatsRef = collection(db, 'chats');
@@ -64,10 +137,9 @@ export default function App() {
               if (msgSnap.empty) return;
               const m: any = msgSnap.docs[0].data();
               if (!m?.timestamp) return;
-              // Initialize lastNotified on first snapshot to prevent retroactive alerts
+              // Initialize baseline to 'now' so the next incoming message triggers immediately
               if (!lastNotified.has(chatId)) {
-                lastNotified.set(chatId, m.timestamp);
-                return;
+                lastNotified.set(chatId, Date.now());
               }
               const prev = lastNotified.get(chatId) ?? 0;
               if (m.timestamp <= prev) return;
@@ -77,7 +149,6 @@ export default function App() {
               // Build title from chat data
               let title = 'New message';
               const chatData: any = (await getDoc(doc(db, 'chats', chatId))).data() || {};
-              let avatar: string | null = null;
               if (chatData?.type === 'group' && chatData?.groupName) {
                 title = chatData.groupName;
               } else {
@@ -85,11 +156,10 @@ export default function App() {
                 const senderSnap = await getDoc(doc(db, 'users', m.senderId));
                 const sp = senderSnap.data() as any;
                 title = sp?.displayName || 'New message';
-                avatar = sp?.photoURL || null;
               }
               const body = m.text ? String(m.text) : 'Sent a photo';
               const { showLocalNotification } = await import('./lib/notifications');
-              showLocalNotification(title, body, { chatId }, avatar);
+              showLocalNotification(title, body, { chatId });
             });
             perChatSubs.set(chatId, unsubLatest);
           });
@@ -110,6 +180,9 @@ export default function App() {
           for (const [, unsub] of perChatSubs) unsub();
           perChatSubs.clear();
           lastNotified.clear();
+          appStateSub.remove();
+          if (presenceInterval) clearInterval(presenceInterval);
+          setOffline();
         };
       } else {
         setNeedsOnboarding(false);

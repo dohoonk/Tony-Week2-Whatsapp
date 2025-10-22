@@ -3,9 +3,7 @@ import Constants from 'expo-constants';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    // iOS 16+: use banner/list flags; keep alert for backward compat
-    shouldShowBanner: true,
-    shouldShowList: true,
+    // Legacy-safe config for Expo Go / older SDKs
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
@@ -31,15 +29,13 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 }
 
-export async function showLocalNotification(title: string, body: string, data?: Record<string, any>, imageUrl?: string | null) {
+export async function showLocalNotification(title: string, body: string, data?: Record<string, any>) {
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
         title,
         body,
         data: data ?? {},
-        // iOS inline image (shows in expanded list/detail)
-        attachments: imageUrl ? [{ identifier: 'avatar', url: imageUrl }] : undefined,
       },
       trigger: null,
     });

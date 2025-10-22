@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
-import { collection, onSnapshot, orderBy, query, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, doc, getDoc, limit, startAfter, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { auth } from '../../firebase/config';
 import { sendMessage, updateReadStatus } from '../../firebase/chatService';
@@ -35,6 +35,13 @@ export default function ChatRoomScreen() {
   const [readMap, setReadMap] = useState<Record<string, number>>({});
   const [members, setMembers] = useState<string[]>([]);
   const [profileCache, setProfileCache] = useState<Record<string, any>>({});
+  const scrolledToUnreadRef = React.useRef<boolean>(false);
+  const initialLastReadAtRef = React.useRef<number | null>(null);
+  const persistDividerRef = React.useRef<boolean>(false);
+  const [oldestCursor, setOldestCursor] = useState<any>(null);
+  const [hasMoreOlder, setHasMoreOlder] = useState<boolean>(true);
+  const [loadingOlder, setLoadingOlder] = useState<boolean>(false);
+  const lastMarkedRef = React.useRef<number>(0);
 
   const ensureProfile = async (uid: string) => {
     if (profileCache[uid]) return profileCache[uid];
@@ -63,20 +70,35 @@ export default function ChatRoomScreen() {
       setReadMap(data?.readStatus || {});
       setMembers(Array.isArray(data?.members) ? data.members : []);
     });
+    // Live subscribe to the latest 10 messages
     const ref = collection(db, 'chats', chatId, 'messages');
-    const q = query(ref, orderBy('timestamp', 'asc'));
+    const q = query(ref, orderBy('timestamp', 'desc'), limit(10));
     const unsub = onSnapshot(q, (snap) => {
-      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-      setMessages(list);
+      const liveDesc = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any), __doc: d }));
+      if (liveDesc.length > 0) setOldestCursor(liveDesc[liveDesc.length - 1].__doc);
+      const liveAsc = liveDesc
+        .slice()
+        .reverse()
+        .map(({ __doc, ...m }) => m as any);
+      // Merge with existing (older) messages and de-dup, then sort asc
+      setMessages((prev) => {
+        const map = new Map<string, any>();
+        [...prev, ...liveAsc].forEach((m: any) => map.set(m.id, m));
+        return Array.from(map.values()).sort((a: any, b: any) => (a.timestamp || 0) - (b.timestamp || 0));
+      });
       const uid = auth.currentUser?.uid;
       // Only mark read when we've loaded once and are at (or near) the bottom
       if (uid && hasLoadedRef.current && atBottomRef.current) {
-        updateReadStatus(chatId, uid);
+        const now = Date.now();
+        if (now - lastMarkedRef.current > 500) {
+          updateReadStatus(chatId, uid);
+          lastMarkedRef.current = now;
+        }
       }
       // Foreground local notification for new incoming message
       const prev = prevCountRef.current;
-      if (list.length > prev) {
-        const last = list[list.length - 1];
+      if (liveAsc.length > prev) {
+        const last = liveAsc[liveAsc.length - 1];
         const myUid = auth.currentUser?.uid;
         if (last && last.senderId !== myUid) {
           const body = last.text ? String(last.text) : 'Sent a photo';
@@ -88,11 +110,41 @@ export default function ChatRoomScreen() {
           });
         }
       }
-      prevCountRef.current = list.length;
+      prevCountRef.current = liveAsc.length;
       if (!hasLoadedRef.current) hasLoadedRef.current = true;
     });
     return () => { unsub(); unsubTitle(); };
   }, [chatId]);
+
+  // Compute the index of the first unread message (in raw messages)
+  const firstUnreadIndex = React.useMemo(() => {
+    if (!lastReadAt || messages.length === 0) return null;
+    const idx = messages.findIndex((m) => (m?.timestamp ?? 0) > (lastReadAt as number));
+    return idx >= 0 ? idx : null;
+  }, [messages, lastReadAt]);
+
+  // Jump to the unread divider on first load
+  useEffect(() => {
+    if (firstUnreadIndex !== null && !scrolledToUnreadRef.current) {
+      // Divider will be inserted at the same index; scroll near it
+      requestAnimationFrame(() => {
+        try {
+          listRef.current?.scrollToIndex?.({ index: firstUnreadIndex, animated: false, viewPosition: 0.3 });
+          scrolledToUnreadRef.current = true;
+          atBottomRef.current = false;
+        } catch {}
+      });
+    }
+  }, [firstUnreadIndex]);
+
+  // When chat unmounts, clear persistence flags so the divider doesn't persist between sessions
+  useEffect(() => {
+    return () => {
+      scrolledToUnreadRef.current = false;
+      initialLastReadAtRef.current = null;
+      persistDividerRef.current = false;
+    };
+  }, []);
 
   // Listen to chat doc for my lastReadAt
   useEffect(() => {
@@ -102,7 +154,11 @@ export default function ChatRoomScreen() {
     const unsub = onSnapshot(chatRef, (snap) => {
       const data: any = snap.data() || {};
       const rs = data.readStatus || {};
-      setLastReadAt(rs[uid] ?? null);
+      const current = rs[uid] ?? null;
+      setLastReadAt(current);
+      if (initialLastReadAtRef.current === null) {
+        initialLastReadAtRef.current = current;
+      }
     });
     return () => unsub();
   }, [chatId]);
@@ -127,6 +183,11 @@ export default function ChatRoomScreen() {
     if (!uid || !text.trim()) return;
     await sendMessage(chatId, uid, { text: text.trim() });
     setText('');
+    // Ensure we reveal the just-sent message immediately
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd?.({ animated: true });
+      atBottomRef.current = true;
+    });
   };
 
   const onPickImage = async () => {
@@ -142,6 +203,37 @@ export default function ChatRoomScreen() {
       const uri = res.assets[0].uri;
       const imageUrl = await uploadChatImage(chatId, uri);
       await sendMessage(chatId, uid, { imageUrl });
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToEnd?.({ animated: true });
+        atBottomRef.current = true;
+      });
+    }
+  };
+
+  const loadOlder = async () => {
+    if (loadingOlder || !hasMoreOlder || !oldestCursor) return;
+    setLoadingOlder(true);
+    try {
+      const ref = collection(db, 'chats', chatId, 'messages');
+      const q = query(ref, orderBy('timestamp', 'desc'), startAfter(oldestCursor), limit(10));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        setHasMoreOlder(false);
+        return;
+      }
+      const desc = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any), __doc: d }));
+      setOldestCursor(desc[desc.length - 1].__doc);
+      const olderAsc = desc
+        .slice()
+        .reverse()
+        .map(({ __doc, ...m }) => m as any);
+      setMessages((prev) => {
+        const map = new Map<string, any>();
+        [...olderAsc, ...prev].forEach((m: any) => map.set(m.id, m));
+        return Array.from(map.values()).sort((a: any, b: any) => (a.timestamp || 0) - (b.timestamp || 0));
+      });
+    } finally {
+      setLoadingOlder(false);
     }
   };
 
@@ -152,18 +244,48 @@ export default function ChatRoomScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
         data={(function buildData() {
-          if (!lastReadAt) return messages;
-          const idx = messages.findIndex((m) => m.timestamp > (lastReadAt as number));
+          const boundary = persistDividerRef.current && initialLastReadAtRef.current !== null
+            ? (initialLastReadAtRef.current as number)
+            : (lastReadAt as number);
+          if (!boundary) return messages;
+          const idx = messages.findIndex((m) => m.timestamp > boundary);
           if (idx <= 0) return messages;
           const arr: any[] = [...messages];
           arr.splice(idx, 0, { id: 'unread-divider', divider: true });
           return arr;
         })()}
         keyExtractor={(item) => item.id}
+        onScrollToIndexFailed={(info) => {
+          // Retry after measurement
+          setTimeout(() => {
+            try {
+              listRef.current?.scrollToIndex?.({ index: info.index, animated: false, viewPosition: 0.3 });
+            } catch {}
+          }, 200);
+        }}
         onScroll={(e) => {
           const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
           const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
           atBottomRef.current = distanceFromBottom < 24; // near bottom
+          if (contentOffset.y < 24) {
+            loadOlder();
+          }
+        }}
+        viewabilityConfig={{ viewAreaCoveragePercentThreshold: 10 }}
+        onViewableItemsChanged={({ viewableItems }) => {
+          const uid = auth.currentUser?.uid;
+          if (!uid) return;
+          // If most recent visible message is newer than our lastReadAt, mark read
+          const maxTs = viewableItems
+            .filter((vi: any) => !vi.item?.divider && typeof vi.item?.timestamp === 'number')
+            .reduce((m: number, vi: any) => Math.max(m, vi.item.timestamp as number), 0);
+          if (maxTs > (lastReadAt ?? 0)) {
+            const now = Date.now();
+            if (now - lastMarkedRef.current > 500) {
+              updateReadStatus(chatId, uid);
+              lastMarkedRef.current = now;
+            }
+          }
         }}
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }: any) => {

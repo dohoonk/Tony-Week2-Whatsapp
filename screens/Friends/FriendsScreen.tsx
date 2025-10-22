@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Image } from 'react-native';
 import { auth } from '../../firebase/config';
 import { getUserProfile } from '../../firebase/userService';
 import { listIncomingRequests, listOutgoingRequests, listFriends, sendFriendRequest, acceptFriendRequest, declineFriendRequest, cancelOutgoingRequest } from '../../firebase/friendService';
 import GroupChatModal from './GroupChatModal';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useNavigation } from '@react-navigation/native';
 import { openDirectChat } from '../../firebase/chatService';
@@ -16,6 +16,9 @@ export default function FriendsScreen() {
   const [friends, setFriends] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [groupVisible, setGroupVisible] = useState(false);
+  const [presenceMap, setPresenceMap] = useState<Record<string, boolean>>({});
+  const presenceUnsubsRef = React.useRef<Record<string, () => void>>({});
+  const userUnsubsRef = React.useRef<Record<string, () => void>>({});
 
   const uid = auth.currentUser?.uid;
   const navigation = useNavigation();
@@ -54,6 +57,80 @@ export default function FriendsScreen() {
   useEffect(() => {
     refresh();
   }, [uid]);
+
+  // Smoke-test: ensure my presence doc exists when viewing Friends
+  useEffect(() => {
+    const writePresence = async () => {
+      try {
+        if (!uid) return;
+        const now = Date.now();
+        await setDoc(doc(db, 'presence', uid), { state: 'online', online: true, lastChanged: now }, { merge: true });
+        await setDoc(doc(db, 'users', uid), { status: 'online', online: true, lastSeen: now, updatedAt: now }, { merge: true });
+        if (__DEV__) console.log('Friends presence smoke-write ok');
+      } catch (e) {
+        if (__DEV__) console.log('Friends presence smoke-write error', (e as any)?.message || e);
+      }
+    };
+    writePresence();
+  }, [uid]);
+
+  // Subscribe to presence for all relevant users
+  useEffect(() => {
+    const ids = new Set<string>();
+    incoming.forEach((i: any) => ids.add(i.fromUid));
+    outgoing.forEach((o: any) => ids.add(o.toUid));
+    friends.forEach((f: any) => ids.add(f.friendUid));
+
+    // Unsubscribe listeners that are no longer needed
+    Object.keys(presenceUnsubsRef.current).forEach((userId) => {
+      if (!ids.has(userId)) {
+        presenceUnsubsRef.current[userId]?.();
+        delete presenceUnsubsRef.current[userId];
+      }
+    });
+    Object.keys(userUnsubsRef.current).forEach((userId) => {
+      if (!ids.has(userId)) {
+        userUnsubsRef.current[userId]?.();
+        delete userUnsubsRef.current[userId];
+      }
+    });
+
+    // Subscribe to new ones
+    ids.forEach((userId) => {
+      if (presenceUnsubsRef.current[userId]) return;
+      const presenceDoc = doc(db, 'presence', userId);
+      const unsub = onSnapshot(presenceDoc, (snap) => {
+        const data: any = snap.data() || {};
+        const recent = (ts?: number) => typeof ts === 'number' && Date.now() - ts < 120000; // 2 min window
+        const online = data?.online === true || data?.state === 'online' || recent(data?.lastChanged) || recent(data?.lastSeen);
+        setPresenceMap((m) => ({ ...m, [userId]: !!online }));
+      });
+      presenceUnsubsRef.current[userId] = unsub;
+    });
+
+    // Also subscribe to users docs as a fallback/secondary signal
+    ids.forEach((userId) => {
+      if (userUnsubsRef.current[userId]) return;
+      const uref = doc(db, 'users', userId);
+      const unsub = onSnapshot(uref, (snap) => {
+        const u: any = snap.data() || {};
+        const recent = (ts?: number) => typeof ts === 'number' && Date.now() - ts < 120000;
+        const online = u?.status === 'online' || u?.online === true || recent(u?.lastSeen);
+        if (online !== undefined) {
+          setPresenceMap((m) => ({ ...m, [userId]: !!online }));
+        }
+      });
+      userUnsubsRef.current[userId] = unsub;
+    });
+
+    return () => {
+      // Clean up on unmount
+      Object.values(presenceUnsubsRef.current).forEach((u) => u());
+      presenceUnsubsRef.current = {};
+      Object.values(userUnsubsRef.current).forEach((u) => u());
+      userUnsubsRef.current = {};
+    };
+  }, [incoming, outgoing, friends]);
 
   const findUserByEmail = async (email: string) => {
     const ref = collection(db, 'users');
@@ -115,14 +192,24 @@ export default function FriendsScreen() {
       <FlatList
         data={incoming}
         keyExtractor={(item) => item.id}
+        extraData={presenceMap}
         ListEmptyComponent={<Text style={{ color: '#666' }}>No incoming</Text>}
         renderItem={({ item }) => (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
-            <View>
-              <Text style={{ fontWeight: '600' }}>{item?.profile?.displayName ?? item.fromUid}</Text>
-              {item?.profile?.email ? (
-                <Text style={{ color: '#666' }}>{item.profile.email}</Text>
-              ) : null}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Image
+                source={item?.profile?.photoURL ? { uri: item.profile.photoURL } : undefined}
+                style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#ddd' }}
+              />
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontWeight: '600' }}>{item?.profile?.displayName ?? item.fromUid}</Text>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.fromUid] ? '#34C759' : '#D1D5DB' }} />
+                </View>
+                {item?.profile?.email ? (
+                  <Text style={{ color: '#666' }}>{item.profile.email}</Text>
+                ) : null}
+              </View>
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Button title="Accept" onPress={async () => { await acceptFriendRequest(item.id, item.fromUid, uid!); refresh(); }} />
@@ -136,14 +223,24 @@ export default function FriendsScreen() {
       <FlatList
         data={outgoing}
         keyExtractor={(item) => item.id}
+        extraData={presenceMap}
         ListEmptyComponent={<Text style={{ color: '#666' }}>No outgoing</Text>}
         renderItem={({ item }) => (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
-            <View>
-              <Text style={{ fontWeight: '600' }}>{item?.profile?.displayName ?? item.toUid}</Text>
-              {item?.profile?.email ? (
-                <Text style={{ color: '#666' }}>{item.profile.email}</Text>
-              ) : null}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Image
+                source={item?.profile?.photoURL ? { uri: item.profile.photoURL } : undefined}
+                style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#ddd' }}
+              />
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontWeight: '600' }}>{item?.profile?.displayName ?? item.toUid}</Text>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.toUid] ? '#34C759' : '#D1D5DB' }} />
+                </View>
+                {item?.profile?.email ? (
+                  <Text style={{ color: '#666' }}>{item.profile.email}</Text>
+                ) : null}
+              </View>
             </View>
             <Button title="Cancel" onPress={async () => { await cancelOutgoingRequest(item.id); refresh(); }} />
           </View>
@@ -154,6 +251,7 @@ export default function FriendsScreen() {
       <FlatList
         data={friends}
         keyExtractor={(item) => item.id}
+        extraData={presenceMap}
         ListEmptyComponent={<Text style={{ color: '#666' }}>No friends yet</Text>}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -163,13 +261,22 @@ export default function FriendsScreen() {
               // Navigate to nested ChatRoom inside the Chats tab stack
               navigation.navigate('Chats' as never, { screen: 'ChatRoom', params: { chatId } } as never);
             }}
-            style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}
+            style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, alignItems: 'center' }}
           >
-            <View>
-              <Text style={{ fontWeight: '600' }}>{item?.profile?.displayName ?? item.friendUid}</Text>
-              {item?.profile?.email ? (
-                <Text style={{ color: '#666' }}>{item.profile.email}</Text>
-              ) : null}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Image
+                source={item?.profile?.photoURL ? { uri: item.profile.photoURL } : undefined}
+                style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#ddd' }}
+              />
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontWeight: '600' }}>{item?.profile?.displayName ?? item.friendUid}</Text>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.friendUid] ? '#34C759' : '#D1D5DB' }} />
+                </View>
+                {item?.profile?.email ? (
+                  <Text style={{ color: '#666' }}>{item.profile.email}</Text>
+                ) : null}
+              </View>
             </View>
             <Text style={{ color: '#0066cc' }}>Start Chat</Text>
           </TouchableOpacity>

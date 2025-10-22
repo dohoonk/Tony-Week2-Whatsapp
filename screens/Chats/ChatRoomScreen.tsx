@@ -37,6 +37,13 @@ export default function ChatRoomScreen() {
       if (data?.type === 'group' && data?.groupName) {
         // @ts-ignore
         navigation.setOptions?.({ title: data.groupName });
+        // @ts-ignore
+        navigation.setOptions?.({
+          headerRight: () => (
+            // @ts-ignore
+            <Text onPress={() => navigation.navigate('GroupSettings' as never, { chatId } as never)} style={{ color: '#0066cc', marginRight: 12 }}>Edit</Text>
+          ),
+        });
       }
     });
     const ref = collection(db, 'chats', chatId, 'messages');

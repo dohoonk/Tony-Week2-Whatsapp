@@ -50,10 +50,13 @@ export async function sendMessage(chatId: string, senderId: string, data: Messag
   });
 }
 
-export async function updateReadStatus(chatId: string, uid: string) {
+export async function updateReadStatus(chatId: string, uid: string, opts?: { id?: string; at?: number }) {
   const chatRef = doc(db, 'chats', chatId);
   const now = Date.now();
-  await updateDoc(chatRef, { [`readStatus.${uid}`]: now });
+  const at = typeof opts?.at === 'number' ? opts!.at! : now;
+  const id = opts?.id ?? null;
+  // Store both object shape (id + at) for new logic; legacy readers can still use 'at'
+  await updateDoc(chatRef, { [`readStatus.${uid}`]: { id, at } as any });
 }
 
 export async function openDirectChat(uidA: string, uidB: string) {

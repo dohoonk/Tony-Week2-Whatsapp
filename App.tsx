@@ -2,6 +2,9 @@ import 'react-native-gesture-handler';
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from './navigation/AppNavigator';
+import { AuthProvider } from './contexts/AuthContext';
+import { ChatProvider } from './contexts/ChatContext';
+import { TripProvider } from './contexts/TripContext';
 import './firebase/config';
 import { onAuthStateChanged } from './firebase/authService';
 import LoginScreen from './screens/Auth/LoginScreen';
@@ -121,6 +124,7 @@ export default function App() {
         const cq = query(chatsRef, where('members', 'array-contains', u.uid));
         const perChatSubs = new Map<string, () => void>();
         const lastNotified = new Map<string, number>();
+        const lastNotifiedId = new Map<string, string>();
         const unsubChats = onSnapshot(cq, async (chatsSnap) => {
           const currentIds = new Set<string>();
           chatsSnap.forEach((c) => currentIds.add(c.id));
@@ -144,16 +148,20 @@ export default function App() {
             );
             const unsubLatest = onSnapshot(latestRef, async (msgSnap) => {
               if (msgSnap.empty) return;
-              const m: any = msgSnap.docs[0].data();
+              const doc0 = msgSnap.docs[0];
+              const msgId = doc0.id;
+              const m: any = doc0.data();
               if (!m?.timestamp) return;
               // Initialize baseline to 'now' so the next incoming message triggers immediately
               if (!lastNotified.has(chatId)) lastNotified.set(chatId, Date.now());
               const prev = lastNotified.get(chatId) ?? 0;
               const msgTs = typeof m.timestamp === 'number' ? m.timestamp : (m.timestamp?.toMillis?.() ?? 0);
-              const willNotify = msgTs > prev && m.senderId !== u.uid;
-              try { if (__DEV__) console.log('Notif check', { chatId, msgTs, prev, senderId: m.senderId, willNotify }); } catch {}
+              const sameId = lastNotifiedId.get(chatId) === msgId;
+              const willNotify = !sameId && (msgTs > prev) && m.senderId !== u.uid;
+              try { if (__DEV__) console.log('Notif check', { chatId, msgId, msgTs, prev, senderId: m.senderId, willNotify }); } catch {}
               if (!willNotify) return;
               lastNotified.set(chatId, msgTs);
+              lastNotifiedId.set(chatId, msgId);
 
               // Build title from chat data
               let title = 'New message';
@@ -202,6 +210,19 @@ export default function App() {
     return () => unsub();
   }, []);
 
+  // DEBUG: log an ID token after sign-in (remove after testing)
+  React.useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        // force refresh to ensure a valid token
+        // @ts-ignore
+        const token = await user.getIdToken?.(true);
+        if (token && __DEV__) console.log('ID_TOKEN', token);
+      } catch {}
+    })();
+  }, [user]);
+
   if (!ready) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -217,7 +238,13 @@ export default function App() {
       ) : needsOnboarding ? (
         <OnboardingScreen onDone={() => setNeedsOnboarding(false)} />
       ) : (
-        <AppNavigator />
+        <AuthProvider user={user}>
+          <ChatProvider>
+            <TripProvider>
+              <AppNavigator />
+            </TripProvider>
+          </ChatProvider>
+        </AuthProvider>
       )}
     </NavigationContainer>
   );

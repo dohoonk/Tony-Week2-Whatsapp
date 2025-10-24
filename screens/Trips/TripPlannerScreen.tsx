@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { TripsStackParamList } from '../../navigation/TripsStack';
 import { db } from '../../firebase/config';
@@ -12,7 +12,7 @@ export default function TripPlannerScreen() {
   const [trip, setTrip] = useState<any>(null);
   const [itinerary, setItinerary] = useState<Array<{ date: string; items: string[] }>>([]);
   const [userCache, setUserCache] = useState<Record<string, any>>({});
-  const [weather, setWeather] = useState<Record<string, { lo: number; hi: number; cond: string }>>({});
+  const [weather, setWeather] = useState<Record<string, { lo: number; hi: number; cond: string; icon?: string }>>({});
   const [weatherCity, setWeatherCity] = useState<string>('');
   const [weatherWarn, setWeatherWarn] = useState<string>('');
 
@@ -91,8 +91,8 @@ export default function TripPlannerScreen() {
       }
       const res = await fetchTripWeather(chatId, city, start, end);
       setWeatherWarn((res as any)?.warning || '');
-      const map: Record<string, { lo: number; hi: number; cond: string }> = {};
-      (res.days || []).forEach((d: any) => { map[d.date] = { lo: d.lo, hi: d.hi, cond: d.cond }; });
+      const map: Record<string, { lo: number; hi: number; cond: string; icon?: string }> = {};
+      (res.days || []).forEach((d: any) => { map[d.date] = { lo: d.lo, hi: d.hi, cond: d.cond, icon: d.icon }; });
       setWeather(map);
     } catch (e: any) {
       setWeatherWarn(String(e?.message || e));
@@ -228,7 +228,12 @@ export default function TripPlannerScreen() {
                 <TouchableOpacity onPress={() => removeDay(index)}><Text style={{ color: '#EF4444' }}>Remove day</Text></TouchableOpacity>
               </View>
               {weather[item?.date] ? (
-                <Text style={{ color: '#6B7280', marginTop: 2 }}>Weather: {weather[item.date].lo}°F–{weather[item.date].hi}°F, {weather[item.date].cond}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  {weather[item.date].icon ? (
+                    <Image source={{ uri: weather[item.date].icon }} style={{ width: 20, height: 20 }} />
+                  ) : null}
+                  <Text style={{ color: '#6B7280' }}>Weather: {weather[item.date].lo}°F–{weather[item.date].hi}°F, {weather[item.date].cond}</Text>
+                </View>
               ) : null}
               {(item?.items || []).map((it, idx) => (
                 <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>

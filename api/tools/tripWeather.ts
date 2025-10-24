@@ -58,7 +58,7 @@ export default async function handler(req: any, res: any) {
     if (!isFinite(startMs) || !isFinite(endMs)) { res.status(400).json({ error: 'Invalid start/end' }); return; }
 
     const within14 = (startMs - Date.now())/(24*3600*1000) <= 14 && (endMs - Date.now())/(24*3600*1000) <= 14;
-    const results: { date: string; lo: number; hi: number; cond: string }[] = [];
+    const results: { date: string; lo: number; hi: number; cond: string; icon?: string }[] = [];
     if (within14) {
       const daysNeeded = Math.min(14, Math.max(1, Math.ceil((endMs - Date.now())/(24*3600*1000)) + 1));
       const url = `https://api.weatherapi.com/v1/forecast.json?key=${wxKey}&q=${encodeURIComponent(q)}&days=${daysNeeded}&aqi=no&alerts=no`;
@@ -69,7 +69,9 @@ export default async function handler(req: any, res: any) {
         for (const d of fdays) {
           const dateStr = String(d?.date || '');
           if (dateStr >= start && dateStr <= end) {
-            results.push({ date: dateStr, lo: Math.round(d?.day?.mintemp_f ?? 0), hi: Math.round(d?.day?.maxtemp_f ?? 0), cond: String(d?.day?.condition?.text || '—') });
+            const rawIcon = String(d?.day?.condition?.icon || '');
+            const icon = rawIcon ? (rawIcon.startsWith('http') ? rawIcon : `https:${rawIcon}`) : undefined;
+            results.push({ date: dateStr, lo: Math.round(d?.day?.mintemp_f ?? 0), hi: Math.round(d?.day?.maxtemp_f ?? 0), cond: String(d?.day?.condition?.text || '—'), icon });
           }
         }
       }
@@ -82,7 +84,9 @@ export default async function handler(req: any, res: any) {
           const data: any = await resp.json();
           const day = data?.forecast?.forecastday?.[0]?.day;
           if (day) {
-            results.push({ date: dt, lo: Math.round(day?.mintemp_f ?? 0), hi: Math.round(day?.maxtemp_f ?? 0), cond: String(day?.condition?.text || '—') });
+            const rawIcon = String(day?.condition?.icon || '');
+            const icon = rawIcon ? (rawIcon.startsWith('http') ? rawIcon : `https:${rawIcon}`) : undefined;
+            results.push({ date: dt, lo: Math.round(day?.mintemp_f ?? 0), hi: Math.round(day?.maxtemp_f ?? 0), cond: String(day?.condition?.text || '—'), icon });
           }
         }
       }

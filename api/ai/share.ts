@@ -111,7 +111,7 @@ export default async function handler(req: any, res: any) {
         relatedId: pollRef.id,
         createdBy: decoded.uid,
       });
-      await chatRef.update({ lastMessage: msgText, lastMessageAt: now });
+      await chatRef.update({ lastMessage: msgText, lastMessageAt: now, pollId: pollRef.id } as any);
     } else if (tool === 'trip') {
       // Upsert single active trip per chat: trips/{chatId}
       // Try to derive a useful title: Destination - startDate - endDate
@@ -147,7 +147,7 @@ export default async function handler(req: any, res: any) {
         createdAt: tripSnap.exists ? ((tripSnap.data() as any)?.createdAt || now) : now,
         createdBy: tripSnap.exists ? ((tripSnap.data() as any)?.createdBy || decoded.uid) : decoded.uid,
       }, { merge: true });
-      await chatRef.update({ lastMessage: `Trip plan updated (v${baseVer + 1})`, lastMessageAt: now });
+      await chatRef.update({ lastMessage: `Trip plan updated (v${baseVer + 1})`, lastMessageAt: now, tripId: chatId } as any);
       await chatRef.collection('messages').add({
         senderId: 'ai',
         text: `Trip plan updated (v${baseVer + 1})`,
@@ -171,7 +171,7 @@ export default async function handler(req: any, res: any) {
         relatedFeature: tool || 'ai',
         createdBy: decoded.uid,
       });
-      await chatRef.update({ lastMessage: String(draft.text || ''), lastMessageAt: now });
+      await chatRef.update({ lastMessage: String(draft.text || ''), lastMessageAt: now } as any);
     }
     res.status(200).json({ ok: true });
   } catch (e: any) {

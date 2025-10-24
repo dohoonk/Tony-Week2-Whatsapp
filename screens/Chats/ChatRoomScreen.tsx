@@ -669,6 +669,9 @@ export default function ChatRoomScreen() {
             <TouchableOpacity onPress={() => onAIMenuAction('trip')} style={{ paddingVertical: 10 }}>
               <Text>Plan trip</Text>
             </TouchableOpacity>
+            <TouchableOpacity onPress={() => onAIMenuAction('weather')} style={{ paddingVertical: 10 }}>
+              <Text>Weather</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>

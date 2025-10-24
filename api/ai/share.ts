@@ -113,7 +113,7 @@ export default async function handler(req: any, res: any) {
       });
       await chatRef.update({ lastMessage: msgText, lastMessageAt: now });
     } else if (tool === 'trip') {
-      // Create a trip doc and link to chat
+      // Upsert single active trip per chat: trips/{chatId}
       // Try to derive a useful title: Destination - startDate - endDate
       const raw: string = String(draft.text || '');
       const months = '(January|February|March|April|May|June|July|August|September|October|November|December)';
@@ -133,25 +133,30 @@ export default async function handler(req: any, res: any) {
       const endStr = dates[1] || (dates[0] ? dates[0] : 'TBD');
       const title = `${dest} - ${startStr} - ${endStr}`;
 
-      const trip = {
+      const tripRef = db.collection('trips').doc(chatId);
+      const tripSnap = await tripRef.get();
+      const baseVer = tripSnap.exists ? ((tripSnap.data() as any)?.version || 0) : 0;
+      await tripRef.set({
         chatId,
         members,
         title,
         notes: String(draft.text || ''),
-        createdBy: decoded.uid,
-        createdAt: now,
-      } as any;
-      const tripRef = await db.collection('trips').add(trip);
-      await chatRef.update({ tripId: tripRef.id, lastMessage: 'Trip plan created', lastMessageAt: now });
+        version: baseVer + 1,
+        updatedBy: decoded.uid,
+        updatedAt: now,
+        createdAt: tripSnap.exists ? ((tripSnap.data() as any)?.createdAt || now) : now,
+        createdBy: tripSnap.exists ? ((tripSnap.data() as any)?.createdBy || decoded.uid) : decoded.uid,
+      }, { merge: true });
+      await chatRef.update({ lastMessage: `Trip plan updated (v${baseVer + 1})`, lastMessageAt: now });
       await chatRef.collection('messages').add({
         senderId: 'ai',
-        text: 'Trip plan created',
+        text: `Trip plan updated (v${baseVer + 1})`,
         imageUrl: null,
         timestamp: now,
         type: 'ai_response',
         visibility: 'shared',
         relatedFeature: 'trip',
-        relatedId: tripRef.id,
+        relatedId: chatId,
         createdBy: decoded.uid,
       });
     } else {

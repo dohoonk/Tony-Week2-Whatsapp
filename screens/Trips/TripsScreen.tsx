@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { auth, db } from '../../firebase/config';
 import { collection, onSnapshot, query, where, orderBy, updateDoc, doc, deleteDoc } from 'firebase/firestore';
@@ -39,7 +39,7 @@ export default function TripsScreen() {
     return () => unsub();
   }, []);
 
-  // Load trips for user
+  // Load trips for user (doc id may be chatId in single-trip-per-chat mode)
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
@@ -127,12 +127,24 @@ export default function TripsScreen() {
     (item.members || []).forEach((m) => { if (!userCache[m]) ensureUser(m); });
     return (
       <View style={{ padding: 12, borderRadius: 12, backgroundColor: '#EEF2FF', marginBottom: 12 }}>
-        <Text style={{ fontWeight: '600' }}>{item.title || 'Trip Plan'}</Text>
+        <Text style={{ fontWeight: '600' }}>{(item.title || 'Trip Plan') + (item?.id ? ` (v${(item as any).version ?? 1})` : '')}</Text>
         {item.notes ? <Text style={{ color: '#374151', marginTop: 4 }} numberOfLines={3}>{item.notes}</Text> : null}
         <Text style={{ color: '#6B7280', marginTop: 6 }}>Members: {names || (item.members || []).length}</Text>
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
           <TouchableOpacity onPress={() => nav.navigate('Chats', { screen: 'ChatRoom', params: { chatId: item.chatId } })}>
             <Text style={{ color: '#2563EB' }}>Open chat</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => {
+            Alert.alert(
+              'Delete trip?',
+              'This will remove the trip for everyone in the chat. This action cannot be undone.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete', style: 'destructive', onPress: async () => { try { await deleteDoc(doc(db, 'trips', item.id)); } catch {} } },
+              ]
+            );
+          }}>
+            <Text style={{ color: '#EF4444' }}>Delete</Text>
           </TouchableOpacity>
         </View>
       </View>

@@ -47,6 +47,7 @@ export default {
     eas: {
       projectId: '027d40ee-2af7-4453-842f-1eb0c7c96de7',
     },
+    googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
   },
 };
 

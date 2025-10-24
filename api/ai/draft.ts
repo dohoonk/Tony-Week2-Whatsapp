@@ -62,9 +62,20 @@ export default async function handler(req: any, res: any) {
         const { OpenAI } = require('openai');
         const client = new OpenAI({ apiKey: openaiKey });
         const context = messages.map((m: any) => `- ${m.senderId === 'ai' ? 'AI' : m.senderId}: ${m.text || ''}`).join('\n');
-        const prompt = tool === 'summarize'
-          ? `Summarize this group chat succinctly for all members. Plain text only.\n\nChat (latest last):\n${context}`
-          : `Create a helpful plain-text draft for tool: ${tool}. Use the conversation as context.\n\nChat (latest last):\n${context}`;
+        let prompt = '';
+        if (tool === 'summarize') {
+          prompt = `Summarize this group chat succinctly for all members. Plain text only.\n\nChat (latest last):\n${context}`;
+        } else if (tool === 'poll') {
+          prompt = `You are drafting a group poll based on the conversation. Use only plain text.\nFormat exactly:\nQuestion: <one concise question>\nOptions:\n- <option 1>\n- <option 2>\n- <option 3>\n- <option 4 (optional)>\n- <option 5 (optional)>\nKeep options mutually exclusive and short.\n\nChat (latest last):\n${context}`;
+        } else if (tool === 'reminder') {
+          prompt = `Draft a one-line reminder in plain text based on the conversation (no dates parsing yet).\nExample: "Reminder: Pay the Airbnb by Friday."\n\nChat (latest last):\n${context}`;
+        } else if (tool === 'trip') {
+          prompt = `Draft a short plain-text suggestion for next steps in trip planning (no markdown).\n\nChat (latest last):\n${context}`;
+        } else if (tool === 'weather') {
+          prompt = `Draft a brief plain-text weather summary request (no API data yet).\n\nChat (latest last):\n${context}`;
+        } else {
+          prompt = `Create a helpful plain-text draft for tool: ${tool}. Use the conversation as context.\n\nChat (latest last):\n${context}`;
+        }
         const resp = await client.responses.create({ model: 'gpt-4.1-mini', input: prompt });
         const out = (resp as any)?.output_text || '';
         if (out) draftText = out;

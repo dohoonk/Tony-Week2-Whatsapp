@@ -190,10 +190,51 @@ export default function App() {
             }
           }
         });
+
+        // Foreground reminders: schedule local notif at dueAt for my reminders
+        const scheduledReminderNotifs = new Map<string, string>();
+        const remindersRef = collection(db, 'reminders');
+        const rq = query(remindersRef, where('members', 'array-contains', u.uid));
+        const unsubReminders = onSnapshot(rq, async (snap) => {
+          const nowTs = Date.now();
+          const seen = new Set<string>();
+          for (const d of snap.docs) {
+            const r: any = d.data() || {};
+            if (r?.status !== 'scheduled') continue;
+            const dueAt: number | undefined = typeof r?.dueAt === 'number' ? r.dueAt : (r?.dueAt?.toMillis?.() ?? undefined);
+            if (!dueAt || dueAt <= nowTs) continue;
+            seen.add(d.id);
+            const existingId = scheduledReminderNotifs.get(d.id);
+            // If already scheduled, skip
+            if (existingId) continue;
+            try {
+              const notifId = await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: 'Reminder',
+                  body: String(r?.title || 'Reminder'),
+                  data: { chatId: String(r?.chatId || '') },
+                },
+                trigger: new Date(dueAt) as any,
+              });
+              scheduledReminderNotifs.set(d.id, notifId);
+              try { if (__DEV__) console.log('Reminder scheduled', d.id, new Date(dueAt).toISOString()); } catch {}
+            } catch (e) {
+              // ignore
+            }
+          }
+          // Cancel any that disappeared or changed status
+          for (const [rid, notifId] of Array.from(scheduledReminderNotifs.entries())) {
+            if (!seen.has(rid)) {
+              try { await Notifications.cancelScheduledNotificationAsync(notifId); } catch {}
+              scheduledReminderNotifs.delete(rid);
+            }
+          }
+        });
         // Store cleanup on window for this session
         (global as any).__chatUnsubs && (global as any).__chatUnsubs();
         (global as any).__chatUnsubs = () => {
           unsubChats();
+          unsubReminders();
           for (const [, unsub] of perChatSubs) unsub();
           perChatSubs.clear();
           lastNotified.clear();

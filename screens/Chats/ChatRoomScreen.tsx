@@ -54,6 +54,7 @@ export default function ChatRoomScreen() {
   const [previewText, setPreviewText] = useState<string>('');
   const [loadingDraft, setLoadingDraft] = useState(false);
   const [menuForId, setMenuForId] = useState<string | null>(null);
+  const [currentTool, setCurrentTool] = useState<'summarize' | 'poll' | 'reminder' | 'trip' | 'weather'>('summarize');
 
   // Debug: compute last-read message id for current user (from readMap or lastReadAt)
   const lastReadMessageId = React.useMemo(() => {
@@ -386,6 +387,7 @@ export default function ChatRoomScreen() {
   const onAskAIDraft = async () => {
     try {
       setLoadingDraft(true);
+      setCurrentTool('summarize');
       const draft = await fetchDraft(chatId, 'summarize');
       setPreviewText(draft.text || '');
       setPreviewVisible(true);
@@ -396,10 +398,11 @@ export default function ChatRoomScreen() {
     }
   };
 
-  const onAIMenuAction = async (tool: 'summarize' | 'poll' | 'reminder' | 'trip') => {
+  const onAIMenuAction = async (tool: 'summarize' | 'poll' | 'reminder' | 'trip' | 'weather') => {
     try {
       setMenuForId(null);
       setLoadingDraft(true);
+      setCurrentTool(tool);
       const draft = await fetchDraft(chatId, tool);
       setPreviewText(draft.text || '');
       setPreviewVisible(true);
@@ -526,7 +529,7 @@ export default function ChatRoomScreen() {
           if (isAI && item?.relatedFeature === 'poll' && item?.relatedId) {
             return (
               <View style={{ marginBottom: 8, alignSelf: 'stretch' }}>
-                <PollCard pollId={String(item.relatedId)} />
+                <PollCard pollId={String(item.relatedId)} chatId={chatId} members={members} />
               </View>
             );
           }
@@ -596,13 +599,13 @@ export default function ChatRoomScreen() {
       <Modal visible={previewVisible} animationType="slide" transparent>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 16 }}>
           <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 16 }}>
-            <Text style={{ fontWeight: '600', fontSize: 16, marginBottom: 8 }}>AI Draft</Text>
+            <Text style={{ fontWeight: '600', fontSize: 16, marginBottom: 8 }}>AI Draft ({currentTool})</Text>
             <Text style={{ marginBottom: 16 }}>{previewText}</Text>
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
               <TouchableOpacity onPress={() => setPreviewVisible(false)}>
                 <Text style={{ color: '#666' }}>Discard</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={async () => { try { await shareDraft(chatId, 'summarize', previewText); setPreviewVisible(false); } catch (e: any) { Alert.alert('Share failed', String(e?.message || e)); } }}>
+              <TouchableOpacity onPress={async () => { try { await shareDraft(chatId, currentTool, previewText); setPreviewVisible(false); } catch (e: any) { Alert.alert('Share failed', String(e?.message || e)); } }}>
                 <Text style={{ color: '#007AFF' }}>Share</Text>
               </TouchableOpacity>
             </View>

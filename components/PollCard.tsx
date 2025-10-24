@@ -13,9 +13,11 @@ type Poll = {
 
 type PollCardProps = {
   pollId: string;
+  chatId: string;
+  members: string[];
 };
 
-export default function PollCard({ pollId }: PollCardProps) {
+export default function PollCard({ pollId, chatId, members }: PollCardProps) {
   const [poll, setPoll] = useState<Poll | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -48,6 +50,45 @@ export default function PollCard({ pollId }: PollCardProps) {
       await updateDoc(ref, { [`votes.${uid}`]: optionIndex } as any);
     } catch {}
   };
+
+  // Auto-close when all members voted, and post result into chat
+  useEffect(() => {
+    if (!poll || poll.status === 'closed') return;
+    const votes = poll.votes || {};
+    const numVoters = Object.keys(votes).length;
+    const totalMembers = (members || []).length;
+    if (totalMembers > 0 && numVoters >= totalMembers) {
+      (async () => {
+        try {
+          // Close poll
+          await updateDoc(doc(db, 'polls', pollId), { status: 'closed' });
+          // Compute result
+          const counts = new Array(poll.options.length).fill(0);
+          Object.values(votes).forEach((idx) => {
+            if (typeof idx === 'number' && idx >= 0 && idx < counts.length) counts[idx] += 1;
+          });
+          const max = Math.max(...counts);
+          const winningIdx = counts.findIndex((c) => c === max);
+          const winner = poll.options[winningIdx];
+          const msg = `Poll closed: ${poll.question}\nResult: ${winner} (${max}/${numVoters})`;
+          await updateDoc(doc(db, 'chats', chatId), { lastMessage: msg, lastMessageAt: Date.now() });
+          // Post summary message
+          const { collection, addDoc } = await import('firebase/firestore');
+          await addDoc(collection(db, 'chats', chatId, 'messages'), {
+            senderId: 'ai',
+            text: msg,
+            imageUrl: null,
+            timestamp: Date.now(),
+            type: 'ai_response',
+            visibility: 'shared',
+            relatedFeature: 'poll_result',
+            relatedId: pollId,
+            createdBy: auth.currentUser?.uid || 'system',
+          } as any);
+        } catch {}
+      })();
+    }
+  }, [poll, members, pollId, chatId]);
 
   if (loading || !poll) {
     return (

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import { auth, db } from '../../firebase/config';
-import { collection, onSnapshot, query, where, orderBy, updateDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 
 type Reminder = {
   id: string;
@@ -54,7 +54,10 @@ export default function TripsScreen() {
 
   const cancel = async (r: Reminder) => {
     try {
-      await updateDoc(doc(db, 'reminders', r.id), { status: 'completed' } as any);
+      await deleteDoc(doc(db, 'reminders', r.id));
+      setLocalShift((m) => {
+        const { [r.id]: _, ...rest } = m; return rest;
+      });
     } catch {}
   };
 

@@ -193,8 +193,8 @@ export default function App() {
               lastNotified.set(chatId, msgTs);
               lastNotifiedId.set(chatId, msgId);
 
-              // Build title from chat data
-              let title = 'New message';
+              // Build title from chat data; special case poll results
+              let title = m?.relatedFeature === 'poll_result' ? 'Poll closed' : 'New message';
               const chatData: any = (await getDoc(doc(db, 'chats', chatId))).data() || {};
               if (chatData?.type === 'group' && chatData?.groupName) {
                 title = chatData.groupName;

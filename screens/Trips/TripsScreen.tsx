@@ -29,6 +29,7 @@ export default function TripsScreen() {
 
   const upcoming = useMemo(() => {
     return reminders
+      .filter((r) => (r.status === 'scheduled' || r.status === 'notified'))
       .slice()
       .sort((a, b) => {
         const da = typeof (a.dueAt as any)?.toMillis === 'function' ? (a.dueAt as any).toMillis() : (a.dueAt as any) ?? 0;

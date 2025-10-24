@@ -60,6 +60,36 @@ export default async function handler(req: any, res: any) {
         createdBy: decoded.uid,
       });
       await chatRef.update({ lastMessage: msgText, lastMessageAt: now });
+    } else if (tool === 'poll') {
+      // Parse poll from draft text: expect "Question:" and list of "- option"
+      const raw = String(draft.text || '');
+      const qMatch = raw.match(/Question:\s*(.*)/i);
+      const question = (qMatch?.[1] || raw.split('\n')[0] || '').trim();
+      const optionLines = raw.split('\n').filter((l: string) => /^\s*-\s+/.test(l));
+      const options = optionLines.map((l: string) => l.replace(/^\s*-\s+/, '').trim()).filter(Boolean).slice(0, 10);
+      const poll = {
+        chatId,
+        question,
+        options,
+        votes: {}, // { [uid]: optionIndex }
+        status: 'open',
+        createdBy: decoded.uid,
+        createdAt: now,
+      } as any;
+      const pollRef = await db.collection('polls').add(poll);
+      const msgText = `Poll: ${question}`;
+      await chatRef.collection('messages').add({
+        senderId: 'ai',
+        text: msgText,
+        imageUrl: null,
+        timestamp: now,
+        type: 'ai_response',
+        visibility: 'shared',
+        relatedFeature: 'poll',
+        relatedId: pollRef.id,
+        createdBy: decoded.uid,
+      });
+      await chatRef.update({ lastMessage: msgText, lastMessageAt: now });
     } else {
       // Default: post AI response message
       await chatRef.collection('messages').add({

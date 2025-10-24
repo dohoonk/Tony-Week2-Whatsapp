@@ -39,7 +39,7 @@ export default function TripsScreen() {
     return () => unsub();
   }, []);
 
-  // Load trips for user
+  // Load trips for user (doc id may be chatId in single-trip-per-chat mode)
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
@@ -127,7 +127,7 @@ export default function TripsScreen() {
     (item.members || []).forEach((m) => { if (!userCache[m]) ensureUser(m); });
     return (
       <View style={{ padding: 12, borderRadius: 12, backgroundColor: '#EEF2FF', marginBottom: 12 }}>
-        <Text style={{ fontWeight: '600' }}>{item.title || 'Trip Plan'}</Text>
+        <Text style={{ fontWeight: '600' }}>{(item.title || 'Trip Plan') + (item?.id ? ` (v${(item as any).version ?? 1})` : '')}</Text>
         {item.notes ? <Text style={{ color: '#374151', marginTop: 4 }} numberOfLines={3}>{item.notes}</Text> : null}
         <Text style={{ color: '#6B7280', marginTop: 6 }}>Members: {names || (item.members || []).length}</Text>
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>

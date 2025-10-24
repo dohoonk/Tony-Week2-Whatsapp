@@ -60,4 +60,23 @@ export async function shareDraft(chatId: string, tool: string, draftText: string
   }
 }
 
+export async function fetchTripWeather(chatId: string, city: string, start: string, end: string): Promise<{ city?: string; days: Array<{ date: string; lo: number; hi: number; cond: string }> }> {
+  if (!API_BASE) throw new Error('Missing EXPO_PUBLIC_AI_API_URL');
+  const token = await auth.currentUser?.getIdToken(true);
+  if (!token) throw new Error('Missing auth token');
+  const res = await fetch(`${API_BASE}/api/tools/tripWeather`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ chatId, city, start, end }),
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Weather failed: ${res.status} ${msg}`);
+  }
+  return await res.json();
+}
+
 

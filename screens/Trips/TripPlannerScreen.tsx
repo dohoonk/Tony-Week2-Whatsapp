@@ -4,6 +4,7 @@ import { RouteProp, useRoute } from '@react-navigation/native';
 import { TripsStackParamList } from '../../navigation/TripsStack';
 import { db } from '../../firebase/config';
 import { doc, onSnapshot, updateDoc, getDoc } from 'firebase/firestore';
+import { fetchTripWeather } from '../../lib/ai';
 
 export default function TripPlannerScreen() {
   const route = useRoute<RouteProp<TripsStackParamList, 'TripPlanner'>>();
@@ -11,6 +12,9 @@ export default function TripPlannerScreen() {
   const [trip, setTrip] = useState<any>(null);
   const [itinerary, setItinerary] = useState<Array<{ date: string; items: string[] }>>([]);
   const [userCache, setUserCache] = useState<Record<string, any>>({});
+  const [weather, setWeather] = useState<Record<string, { lo: number; hi: number; cond: string }>>({});
+  const [weatherCity, setWeatherCity] = useState<string>('');
+  const [weatherWarn, setWeatherWarn] = useState<string>('');
 
   useEffect(() => {
     if (!chatId) return;
@@ -35,6 +39,10 @@ export default function TripPlannerScreen() {
           setItinerary([]);
         }
       }
+      // Infer city from title (format: "Destination - start - end")
+      const t = String((data as any)?.title || '');
+      const inferredCity = t.includes(' - ') ? t.split(' - ')[0].trim() : '';
+      setWeatherCity(inferredCity);
     });
     return () => unsub();
   }, [chatId]);
@@ -59,6 +67,46 @@ export default function TripPlannerScreen() {
     ids.forEach((id) => { if (!userCache[id]) ensureUser(id); });
     return ids.map((id) => userCache[id]?.displayName || id).join(', ');
   }, [trip, userCache]);
+
+  const computeStartEndIso = (): { start?: string; end?: string } => {
+    const sMs = typeof (trip?.startDate as any)?.toMillis === 'function' ? (trip?.startDate as any).toMillis() : (trip?.startDate as any) ?? null;
+    const eMs = typeof (trip?.endDate as any)?.toMillis === 'function' ? (trip?.endDate as any).toMillis() : (trip?.endDate as any) ?? null;
+    if (sMs && eMs) return { start: new Date(sMs).toISOString().slice(0, 10), end: new Date(eMs).toISOString().slice(0, 10) };
+    if (Array.isArray(itinerary) && itinerary.length > 0) {
+      const start = itinerary[0]?.date;
+      const end = itinerary[itinerary.length - 1]?.date;
+      if (start && end) return { start, end };
+    }
+    return {};
+  };
+
+  const loadWeather = async () => {
+    try {
+      setWeatherWarn('');
+      const { start, end } = computeStartEndIso();
+      const city = weatherCity;
+      if (!chatId || !city || !start || !end) {
+        setWeatherWarn('Missing destination or dates');
+        return;
+      }
+      const res = await fetchTripWeather(chatId, city, start, end);
+      setWeatherWarn((res as any)?.warning || '');
+      const map: Record<string, { lo: number; hi: number; cond: string }> = {};
+      (res.days || []).forEach((d: any) => { map[d.date] = { lo: d.lo, hi: d.hi, cond: d.cond }; });
+      setWeather(map);
+    } catch (e: any) {
+      setWeatherWarn(String(e?.message || e));
+    }
+  };
+
+  // Auto-load weather once when we have city and dates
+  useEffect(() => {
+    const { start, end } = computeStartEndIso();
+    if (weatherCity && start && end && Object.keys(weather).length === 0) {
+      loadWeather();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weatherCity, trip, itinerary]);
 
   const addDay = () => {
     // propose next date after last, or today
@@ -110,10 +158,12 @@ export default function TripPlannerScreen() {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
         <Text style={{ fontSize: 16, fontWeight: '600' }}>Itinerary</Text>
         <View style={{ flexDirection: 'row', gap: 16 }}>
+          <TouchableOpacity onPress={loadWeather}><Text style={{ color: '#2563EB' }}>Refresh weather</Text></TouchableOpacity>
           <TouchableOpacity onPress={addDay}><Text style={{ color: '#2563EB' }}>Add day</Text></TouchableOpacity>
           <TouchableOpacity onPress={saveItinerary}><Text style={{ color: '#2563EB' }}>Save</Text></TouchableOpacity>
         </View>
       </View>
+      {weatherWarn ? <Text style={{ color: '#EF4444', marginTop: 4 }}>{weatherWarn}</Text> : null}
 
       {itinerary.length === 0 ? (
         <Text style={{ color: '#6B7280', marginTop: 8 }}>No itinerary yet.</Text>
@@ -127,6 +177,9 @@ export default function TripPlannerScreen() {
                 <Text style={{ fontWeight: '600' }}>{item?.date || `Day ${index + 1}`}</Text>
                 <TouchableOpacity onPress={() => removeDay(index)}><Text style={{ color: '#EF4444' }}>Remove day</Text></TouchableOpacity>
               </View>
+              {weather[item?.date] ? (
+                <Text style={{ color: '#6B7280', marginTop: 2 }}>Weather: {weather[item.date].lo}°F–{weather[item.date].hi}°F, {weather[item.date].cond}</Text>
+              ) : null}
               {(item?.items || []).map((it, idx) => (
                 <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
                   <Text style={{ color: '#374151', flexShrink: 1 }}>• {it}</Text>

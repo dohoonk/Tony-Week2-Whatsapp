@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Alert, TextInput, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { TripsStackParamList } from '../../navigation/TripsStack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { auth, db } from '../../firebase/config';
 import { collection, onSnapshot, query, where, orderBy, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 
@@ -34,7 +36,7 @@ export default function TripsScreen() {
   const [editNotes, setEditNotes] = useState<string>('');
   const [editStart, setEditStart] = useState<string>(''); // MM/DD/YYYY
   const [editEnd, setEditEnd] = useState<string>('');
-  const nav = useNavigation<any>();
+  const nav = useNavigation<NativeStackNavigationProp<TripsStackParamList>>();
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -148,8 +150,8 @@ export default function TripsScreen() {
         {item.notes ? <Text style={{ color: '#374151', marginTop: 4 }} numberOfLines={3}>{item.notes}</Text> : null}
         <Text style={{ color: '#6B7280', marginTop: 6 }}>Members: {names || (item.members || []).length}</Text>
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-          <TouchableOpacity onPress={() => nav.navigate('Chats', { screen: 'ChatRoom', params: { chatId: item.chatId } })}>
-            <Text style={{ color: '#2563EB' }}>Open chat</Text>
+          <TouchableOpacity onPress={() => nav.navigate('TripPlanner', { chatId: item.chatId })}>
+            <Text style={{ color: '#2563EB' }}>Open planner</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => {
             setEditTrip(item);

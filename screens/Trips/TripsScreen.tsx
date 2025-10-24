@@ -134,6 +134,9 @@ export default function TripsScreen() {
           <TouchableOpacity onPress={() => nav.navigate('Chats', { screen: 'ChatRoom', params: { chatId: item.chatId } })}>
             <Text style={{ color: '#2563EB' }}>Open chat</Text>
           </TouchableOpacity>
+          <TouchableOpacity onPress={async () => { try { await deleteDoc(doc(db, 'trips', item.id)); } catch {} }}>
+            <Text style={{ color: '#EF4444' }}>Delete</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );

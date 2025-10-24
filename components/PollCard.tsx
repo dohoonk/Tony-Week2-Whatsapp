@@ -79,11 +79,8 @@ export default function PollCard({ pollId, chatId, members }: PollCardProps) {
           });
 
           if (summary) {
-            let msg = summary.text;
-            try {
-              const res = await fetchPollSummary(chatId, { question: summary.question, options: summary.options, counts: summary.counts });
-              if (res?.text) msg = res.text;
-            } catch {}
+            // Use deterministic counts string to avoid incorrect LLM paraphrases
+            const msg = summary.text;
             await updateDoc(doc(db, 'chats', chatId), { lastMessage: msg, lastMessageAt: Date.now() });
             await addDoc(collection(db, 'chats', chatId, 'messages'), {
               senderId: 'ai',

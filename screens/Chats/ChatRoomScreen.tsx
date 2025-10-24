@@ -36,6 +36,7 @@ export default function ChatRoomScreen() {
   const atBottomRef = React.useRef<boolean>(true);
   const [readMap, setReadMap] = useState<Record<string, any>>({});
   const [members, setMembers] = useState<string[]>([]);
+  const [chatMeta, setChatMeta] = useState<{ tripId?: string | null; pollId?: string | null; reminderId?: string | null }>({});
   const [profileCache, setProfileCache] = useState<Record<string, any>>({});
   const scrolledToUnreadRef = React.useRef<boolean>(false);
   const initialLastReadAtRef = React.useRef<number | null>(null);
@@ -103,6 +104,7 @@ export default function ChatRoomScreen() {
       }
       setReadMap(data?.readStatus || {});
       setMembers(Array.isArray(data?.members) ? data.members : []);
+      setChatMeta({ tripId: data?.tripId ?? null, pollId: data?.pollId ?? null, reminderId: data?.reminderId ?? null });
     });
     // Prime initial lastReadAt before messages subscription so divider renders on first paint
     (async () => {
@@ -550,6 +552,9 @@ export default function ChatRoomScreen() {
           );
         }}
       />
+      {chatMeta?.tripId ? (
+        <Text style={{ textAlign: 'center', color: '#2563EB', marginBottom: 4 }}>Trip linked · {String(chatMeta.tripId).slice(0, 8)}…</Text>
+      ) : null}
       {isSomeoneTyping ? (
         <Text style={{ textAlign: 'center', color: '#888', marginBottom: 4 }}>Typing…</Text>
       ) : null}

@@ -92,6 +92,10 @@ export async function createGroupChat(members: string[], groupName?: string, gro
     lastMessage: '',
     lastMessageAt: now,
     readStatus: {},
+    // Chat-scoped metadata placeholders
+    tripId: null,
+    pollId: null,
+    reminderId: null,
   });
   return chatRef.id;
 }

@@ -133,6 +133,42 @@ export default async function handler(req: any, res: any) {
       const endStr = dates[1] || (dates[0] ? dates[0] : 'TBD');
       const title = `${dest} - ${startStr} - ${endStr}`;
 
+      // Try to convert parsed strings into numeric ms
+      const parseToMs = (s: string): number | null => {
+        const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+        if (iso) {
+          const y = parseInt(iso[1], 10);
+          const m = parseInt(iso[2], 10) - 1;
+          const d = parseInt(iso[3], 10);
+          const dt = new Date(y, m, d);
+          return isNaN(dt.getTime()) ? null : dt.getTime();
+        }
+        const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(s);
+        if (slash) {
+          const m = Math.max(1, Math.min(12, parseInt(slash[1], 10))) - 1;
+          const d = Math.max(1, Math.min(31, parseInt(slash[2], 10)));
+          const y = slash[3].length === 2 ? 2000 + parseInt(slash[3], 10) : parseInt(slash[3], 10);
+          const dt = new Date(y, m, d);
+          return isNaN(dt.getTime()) ? null : dt.getTime();
+        }
+        const monthRe = new RegExp(`^${months}\\s+(\\d{1,2})(?:,\\s*(\\d{4}))?$`, 'i');
+        const mm = monthRe.exec(s);
+        if (mm) {
+          const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+          const name = s.split(/\s+/)[0].toLowerCase();
+          const idx = monthNames.indexOf(name);
+          const day = parseInt(mm[1], 10);
+          const year = mm[2] ? parseInt(mm[2], 10) : (new Date()).getFullYear();
+          const dt = new Date(year, idx, day);
+          return isNaN(dt.getTime()) ? null : dt.getTime();
+        }
+        return null;
+      };
+      const sMsRaw = parseToMs(startStr);
+      const eMsRaw = parseToMs(endStr);
+      const startMs = sMsRaw && eMsRaw ? Math.min(sMsRaw, eMsRaw) : (sMsRaw ?? null);
+      const endMs = sMsRaw && eMsRaw ? Math.max(sMsRaw, eMsRaw) : (eMsRaw ?? sMsRaw ?? null);
+
       const tripRef = db.collection('trips').doc(chatId);
       const tripSnap = await tripRef.get();
       const baseVer = tripSnap.exists ? ((tripSnap.data() as any)?.version || 0) : 0;
@@ -141,6 +177,8 @@ export default async function handler(req: any, res: any) {
         members,
         title,
         notes: String(draft.text || ''),
+        startDate: startMs ?? (tripSnap.exists ? ((tripSnap.data() as any)?.startDate ?? null) : null),
+        endDate: endMs ?? (tripSnap.exists ? ((tripSnap.data() as any)?.endDate ?? null) : null),
         version: baseVer + 1,
         updatedBy: decoded.uid,
         updatedAt: now,

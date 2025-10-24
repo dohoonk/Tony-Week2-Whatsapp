@@ -79,7 +79,49 @@ export default async function handler(req: any, res: any) {
         } else if (tool === 'trip') {
           prompt = `Draft a short plain-text suggestion for next steps in trip planning (no markdown).\n\nChat (latest last):\n${context}`;
         } else if (tool === 'weather') {
-          prompt = `Draft a brief plain-text weather summary request (no API data yet).\n\nChat (latest last):\n${context}`;
+          // Try to extract a simple location from recent conversation
+          const locMatch = /\b(in|at|to)\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2})\b/.exec(context);
+          const city = (locMatch?.[2] || '').trim();
+          const owmKey = process.env.OWM_API_KEY as string | undefined;
+          let summary = '';
+          if (owmKey && city) {
+            try {
+              // 5-day / 3h forecast, imperial units
+              const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&appid=${owmKey}&units=imperial`;
+              const resp = await fetch(url);
+              if (resp.ok) {
+                const data: any = await resp.json();
+                const list: any[] = Array.isArray(data?.list) ? data.list : [];
+                // Aggregate by date
+                const byDay: Record<string, { hi: number; lo: number; conditions: Record<string, number> }> = {};
+                for (const it of list) {
+                  const ts = (it?.dt ?? 0) * 1000;
+                  const d = new Date(ts);
+                  const dayKey = d.toISOString().slice(0, 10);
+                  const temp: number = it?.main?.temp ?? 0;
+                  const cond: string = ((it?.weather?.[0]?.main as string) || 'Unknown');
+                  if (!byDay[dayKey]) byDay[dayKey] = { hi: -Infinity, lo: Infinity, conditions: {} };
+                  byDay[dayKey].hi = Math.max(byDay[dayKey].hi, temp);
+                  byDay[dayKey].lo = Math.min(byDay[dayKey].lo, temp);
+                  byDay[dayKey].conditions[cond] = (byDay[dayKey].conditions[cond] || 0) + 1;
+                }
+                const days = Object.keys(byDay).slice(0, 5);
+                const parts = days.map((dk) => {
+                  const d = byDay[dk];
+                  const topCond = Object.entries(d.conditions).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0] ?? '—';
+                  return `${dk}: ${Math.round(d.lo)}°F–${Math.round(d.hi)}°F, ${topCond}`;
+                });
+                summary = `Weather for ${city} (next ${parts.length} days)\n` + parts.join('\n');
+              }
+            } catch {}
+          }
+          if (!summary) {
+            summary = city
+              ? `Weather summary is unavailable right now for ${city}.`
+              : 'Weather summary unavailable: specify a city (e.g., “Weather in Denver”).';
+          }
+          // Hand the already summarized plain text back
+          prompt = `Return this text as-is (no formatting changes): ${summary}`;
         } else {
           prompt = `Create a helpful plain-text draft for tool: ${tool}. Use the conversation as context.\n\nChat (latest last):\n${context}`;
         }

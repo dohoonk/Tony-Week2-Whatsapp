@@ -12,7 +12,7 @@ import { View, ActivityIndicator, AppState, Platform, ToastAndroid } from 'react
 import OnboardingScreen from './screens/Auth/OnboardingScreen';
 import { getUserProfile } from './firebase/userService';
 import { registerForPushNotificationsAsync } from './lib/notifications';
-import { doc, setDoc, arrayUnion, collection, query, where, onSnapshot, orderBy, limit, getDoc } from 'firebase/firestore';
+import { doc, setDoc, arrayUnion, collection, query, where, onSnapshot, orderBy, limit, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase/config';
 import * as Notifications from 'expo-notifications';
 import { NavigationContainerRefWithCurrent } from '@react-navigation/native';
@@ -39,7 +39,16 @@ export default function App() {
         navRef.current.navigate('Chats', { screen: 'ChatRoom', params: { chatId } });
       }
     });
-    return () => sub.remove();
+    // Mark reminders as notified when the notification is received in foreground
+    const onRecv = Notifications.addNotificationReceivedListener(async (notif) => {
+      try {
+        const rid = (notif as any)?.request?.content?.data?.reminderId as string | undefined;
+        if (rid) {
+          await updateDoc(doc(db, 'reminders', rid), { status: 'notified' });
+        }
+      } catch {}
+    });
+    return () => { sub.remove(); onRecv.remove(); };
   }, []);
 
   // Log that app mounted (dev only)
@@ -212,7 +221,7 @@ export default function App() {
                 content: {
                   title: 'Reminder',
                   body: String(r?.title || 'Reminder'),
-                  data: { chatId: String(r?.chatId || '') },
+                  data: { chatId: String(r?.chatId || ''), reminderId: d.id },
                 },
                 trigger: new Date(dueAt) as any,
               });

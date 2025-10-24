@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions, AppState } from 'react-native';
+import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions, AppState, Modal, ActivityIndicator } from 'react-native';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
 import { collection, onSnapshot, orderBy, query, doc, getDoc, limit, startAfter, getDocs } from 'firebase/firestore';
@@ -9,6 +9,7 @@ import { sendMessage, updateReadStatus } from '../../firebase/chatService';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadChatImage } from '../../firebase/storageService';
 import { showLocalNotification } from '../../lib/notifications';
+import { fetchDraft, shareDraft } from '../../lib/ai';
 
 type Message = {
   id: string;
@@ -47,6 +48,9 @@ export default function ChatRoomScreen() {
   const lastMarkedRef = React.useRef<number>(0);
   const outboxRef = React.useRef<Record<string, { kind: 'text' | 'image'; text?: string; uri?: string }>>({});
   const retryTimerRef = React.useRef<any>(null);
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewText, setPreviewText] = useState<string>('');
+  const [loadingDraft, setLoadingDraft] = useState(false);
 
   // Debug: compute last-read message id for current user (from readMap or lastReadAt)
   const lastReadMessageId = React.useMemo(() => {
@@ -145,7 +149,7 @@ export default function ChatRoomScreen() {
         if (last && last.senderId !== myUid) {
           const body = last.text ? String(last.text) : 'Sent a photo';
           showLocalNotification('New message', body);
-        } else if (last && last.senderId === myUid) {
+        } else if (last && last.senderId === myUid && atBottomRef.current) {
           // If I just sent a message, scroll to bottom to reveal it
           requestAnimationFrame(() => {
             listRef.current?.scrollToEnd?.({ animated: true });
@@ -329,11 +333,13 @@ export default function ChatRoomScreen() {
       outboxRef.current[tempId] = { kind: 'text', text: toSend };
       startRetryLoop();
     }
-    // Ensure we reveal the just-sent message immediately
-    requestAnimationFrame(() => {
-      listRef.current?.scrollToEnd?.({ animated: true });
-      atBottomRef.current = true;
-    });
+    // Reveal just-sent message only if already near bottom
+    if (atBottomRef.current) {
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToEnd?.({ animated: true });
+        atBottomRef.current = true;
+      });
+    }
   };
 
   const onPickImage = async () => {
@@ -364,10 +370,25 @@ export default function ChatRoomScreen() {
         outboxRef.current[tempId] = { kind: 'image', uri };
         startRetryLoop();
       }
-      requestAnimationFrame(() => {
-        listRef.current?.scrollToEnd?.({ animated: true });
-        atBottomRef.current = true;
-      });
+      if (atBottomRef.current) {
+        requestAnimationFrame(() => {
+          listRef.current?.scrollToEnd?.({ animated: true });
+          atBottomRef.current = true;
+        });
+      }
+    }
+  };
+
+  const onAskAIDraft = async () => {
+    try {
+      setLoadingDraft(true);
+      const draft = await fetchDraft(chatId, 'summarize');
+      setPreviewText(draft.text || '');
+      setPreviewVisible(true);
+    } catch (e: any) {
+      Alert.alert('AI Draft failed', String(e?.message || e));
+    } finally {
+      setLoadingDraft(false);
     }
   };
 
@@ -512,6 +533,9 @@ export default function ChatRoomScreen() {
         <TouchableOpacity onPress={onPickImage} style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
           <Text>📎</Text>
         </TouchableOpacity>
+        <TouchableOpacity onPress={onAskAIDraft} style={{ paddingHorizontal: 8, paddingVertical: 6 }} disabled={loadingDraft}>
+          {loadingDraft ? <ActivityIndicator size="small" /> : <Text>✨</Text>}
+        </TouchableOpacity>
         <TextInput
           value={text}
           onChangeText={(t) => {
@@ -531,6 +555,23 @@ export default function ChatRoomScreen() {
         />
         <Button title="Send" onPress={onSend} />
       </View>
+
+      <Modal visible={previewVisible} animationType="slide" transparent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 16 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 16 }}>
+            <Text style={{ fontWeight: '600', fontSize: 16, marginBottom: 8 }}>AI Draft</Text>
+            <Text style={{ marginBottom: 16 }}>{previewText}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+              <TouchableOpacity onPress={() => setPreviewVisible(false)}>
+                <Text style={{ color: '#666' }}>Discard</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={async () => { try { await shareDraft(chatId, 'summarize', previewText); setPreviewVisible(false); } catch (e: any) { Alert.alert('Share failed', String(e?.message || e)); } }}>
+                <Text style={{ color: '#007AFF' }}>Share</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }

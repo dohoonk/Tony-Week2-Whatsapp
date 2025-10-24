@@ -20,7 +20,17 @@ if (!getApps().length) {
 }
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Enable persistent local cache if available (RN-friendly). Fallback to default.
+let _db: any;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { initializeFirestore, persistentLocalCache } = require('firebase/firestore');
+  _db = initializeFirestore(app, { localCache: persistentLocalCache({}) });
+} catch {
+  _db = getFirestore(app);
+}
+export const db = _db;
 export const storage = getStorage(app);
 
 

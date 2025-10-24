@@ -201,8 +201,7 @@ export default function TripPlannerScreen() {
         <Text style={{ color: '#6B7280', marginTop: 4 }}>Members: {memberNames}</Text>
       ) : null}
       {trip?.notes ? <Text style={{ marginTop: 8 }}>{trip.notes}</Text> : null}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
-        <Text style={{ fontSize: 16, fontWeight: '600' }}>Itinerary</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 16 }}>
         <View style={{ flexDirection: 'row', gap: 16 }}>
           <TouchableOpacity onPress={generateItinerary}><Text style={{ color: '#2563EB' }}>Generate</Text></TouchableOpacity>
           <TouchableOpacity onPress={loadWeather}><Text style={{ color: '#2563EB' }}>Refresh weather</Text></TouchableOpacity>
@@ -210,6 +209,9 @@ export default function TripPlannerScreen() {
           <TouchableOpacity onPress={saveItinerary}><Text style={{ color: '#2563EB' }}>Save</Text></TouchableOpacity>
           <TouchableOpacity onPress={postToChat}><Text style={{ color: '#2563EB' }}>Post to chat</Text></TouchableOpacity>
         </View>
+      </View>
+      <View style={{ marginTop: 8 }}>
+        <Text style={{ fontSize: 16, fontWeight: '600' }}>Itinerary</Text>
       </View>
       {weatherWarn ? <Text style={{ color: '#EF4444', marginTop: 4 }}>{weatherWarn}</Text> : null}
 

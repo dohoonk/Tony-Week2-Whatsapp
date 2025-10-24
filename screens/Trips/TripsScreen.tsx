@@ -122,6 +122,9 @@ export default function TripsScreen() {
           <TouchableOpacity onPress={() => adjust(item.id, +15 * 60 * 1000)}>
             <Text style={{ color: '#2563EB' }}>+15m</Text>
           </TouchableOpacity>
+          <TouchableOpacity onPress={async () => { try { await updateDoc(doc(db, 'reminders', item.id), { status: 'completed' } as any); } catch {} }}>
+            <Text style={{ color: '#2563EB' }}>Mark completed</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => save(item)}>
             <Text style={{ color: '#2563EB' }}>Save</Text>
           </TouchableOpacity>

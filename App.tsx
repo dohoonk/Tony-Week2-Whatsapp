@@ -12,7 +12,7 @@ import { View, ActivityIndicator, AppState, Platform, ToastAndroid } from 'react
 import OnboardingScreen from './screens/Auth/OnboardingScreen';
 import { getUserProfile } from './firebase/userService';
 import { registerForPushNotificationsAsync } from './lib/notifications';
-import { doc, setDoc, arrayUnion, collection, query, where, onSnapshot, orderBy, limit, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, arrayUnion, collection, query, where, onSnapshot, orderBy, limit, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from './firebase/config';
 import * as Notifications from 'expo-notifications';
 import { NavigationContainerRefWithCurrent } from '@react-navigation/native';
@@ -44,7 +44,14 @@ export default function App() {
       try {
         const rid = (notif as any)?.request?.content?.data?.reminderId as string | undefined;
         if (rid) {
-          await updateDoc(doc(db, 'reminders', rid), { status: 'notified' });
+          // Idempotent notified update
+          try {
+            const rSnap = await getDoc(doc(db, 'reminders', rid));
+            const st = String((rSnap.data() as any)?.status || 'scheduled');
+            if (st === 'scheduled') {
+              await updateDoc(doc(db, 'reminders', rid), { status: 'notified' });
+            }
+          } catch {}
         }
       } catch {}
     });
@@ -114,11 +121,25 @@ export default function App() {
         };
         await setOnline();
         let presenceInterval: any = setInterval(setOnline, 10000);
-        const appStateSub = AppState.addEventListener('change', (state) => {
+        const appStateSub = AppState.addEventListener('change', async (state) => {
           try { if (__DEV__) console.log('AppState change:', state); } catch {}
           if (state === 'active') {
             setOnline();
             if (!presenceInterval) presenceInterval = setInterval(setOnline, 10000);
+            // Auto-expire overdue reminders on foreground
+            try {
+              const rq = query(collection(db, 'reminders'), where('members', 'array-contains', u.uid));
+              const snap = await getDocs(rq);
+              const now = Date.now();
+              for (const d of snap.docs) {
+                const r: any = d.data() || {};
+                const st = String(r?.status || 'scheduled');
+                const dueAt: number | undefined = typeof r?.dueAt === 'number' ? r.dueAt : (r?.dueAt?.toMillis?.() ?? undefined);
+                if ((st === 'scheduled' || st === 'notified') && dueAt && dueAt < now) {
+                  try { await updateDoc(doc(db, 'reminders', d.id), { status: 'expired' } as any); } catch {}
+                }
+              }
+            } catch {}
           } else if (state === 'background' || state === 'inactive') {
             setOffline();
             if (presenceInterval) {

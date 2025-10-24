@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { auth, db } from '../../firebase/config';
 import { collection, onSnapshot, query, where, orderBy, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 
@@ -11,9 +12,20 @@ type Reminder = {
   status?: 'scheduled' | 'notified' | 'completed' | 'expired';
 };
 
+type Trip = {
+  id: string;
+  chatId: string;
+  title?: string | null;
+  notes?: string | null;
+  members?: string[];
+};
+
 export default function TripsScreen() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [localShift, setLocalShift] = useState<Record<string, number>>({}); // reminderId -> ms delta
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [userCache, setUserCache] = useState<Record<string, any>>({});
+  const nav = useNavigation<any>();
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -26,6 +38,28 @@ export default function TripsScreen() {
     });
     return () => unsub();
   }, []);
+
+  // Load trips for user
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const ref = collection(db, 'trips');
+    const qy = query(ref, where('members', 'array-contains', uid));
+    const unsub = onSnapshot(qy, (snap) => {
+      const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as any[];
+      setTrips(rows);
+    });
+    return () => unsub();
+  }, []);
+
+  const ensureUser = async (uid: string) => {
+    if (userCache[uid]) return userCache[uid];
+    const { getDoc, doc: d } = await import('firebase/firestore');
+    const snap = await getDoc(d(db, 'users', uid));
+    const data = snap.exists() ? snap.data() : null;
+    setUserCache((m) => ({ ...m, [uid]: data }));
+    return data;
+  };
 
   const upcoming = useMemo(() => {
     return reminders
@@ -88,8 +122,32 @@ export default function TripsScreen() {
     );
   };
 
+  const renderTrip = ({ item }: { item: Trip }) => {
+    const names = (item.members || []).map((m) => userCache[m]?.displayName || m).slice(0, 4).join(', ');
+    (item.members || []).forEach((m) => { if (!userCache[m]) ensureUser(m); });
+    return (
+      <View style={{ padding: 12, borderRadius: 12, backgroundColor: '#EEF2FF', marginBottom: 12 }}>
+        <Text style={{ fontWeight: '600' }}>{item.title || 'Trip Plan'}</Text>
+        {item.notes ? <Text style={{ color: '#374151', marginTop: 4 }} numberOfLines={3}>{item.notes}</Text> : null}
+        <Text style={{ color: '#6B7280', marginTop: 6 }}>Members: {names || (item.members || []).length}</Text>
+        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+          <TouchableOpacity onPress={() => nav.navigate('Chats', { screen: 'ChatRoom', params: { chatId: item.chatId } })}>
+            <Text style={{ color: '#2563EB' }}>Open chat</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={{ flex: 1, padding: 16 }}>
+      <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 12 }}>Trips</Text>
+      {trips.length === 0 ? (
+        <Text style={{ color: '#6B7280', marginBottom: 16 }}>No trips yet. Use Plan trip in chats.</Text>
+      ) : (
+        <FlatList data={trips} keyExtractor={(t) => t.id} renderItem={renderTrip} style={{ marginBottom: 12 }} />
+      )}
+
       <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 12 }}>Reminders</Text>
       {upcoming.length === 0 ? (
         <Text style={{ color: '#6B7280' }}>No reminders yet. Use AI in chats to create one.</Text>

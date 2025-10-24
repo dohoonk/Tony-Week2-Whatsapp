@@ -45,8 +45,33 @@ export default async function handler(req: any, res: any) {
     if (!snap.exists) { res.status(404).json({ error: 'Chat not found' }); return; }
     const members: string[] = Array.isArray((snap.data() as any)?.members) ? (snap.data() as any).members : [];
     if (!members.includes(decoded.uid)) { res.status(403).json({ error: 'Forbidden' }); return; }
+    // RAG: last 200 text messages (exclude images/AI/system)
+    const msgsSnap = await db.collection('chats').doc(chatId).collection('messages')
+      .orderBy('timestamp', 'desc').limit(250).get();
+    const messages = msgsSnap.docs
+      .map(d => ({ id: d.id, ...(d.data() as any) }))
+      .filter(m => !m.imageUrl && m.type !== 'ai_response' && m.type !== 'system')
+      .slice(0, 200)
+      .reverse();
 
-    res.status(200).json({ draft: { text: `[DRAFT:${tool}] placeholder` }, meta: { tool, chatId } });
+    let draftText = `[DRAFT:${tool}] placeholder`;
+    const openaiKey = process.env.OPENAI_API_KEY as string | undefined;
+    if (openaiKey) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { OpenAI } = require('openai');
+        const client = new OpenAI({ apiKey: openaiKey });
+        const context = messages.map((m: any) => `- ${m.senderId === 'ai' ? 'AI' : m.senderId}: ${m.text || ''}`).join('\n');
+        const prompt = tool === 'summarize'
+          ? `Summarize this group chat succinctly for all members. Plain text only.\n\nChat (latest last):\n${context}`
+          : `Create a helpful plain-text draft for tool: ${tool}. Use the conversation as context.\n\nChat (latest last):\n${context}`;
+        const resp = await client.responses.create({ model: 'gpt-4.1-mini', input: prompt });
+        const out = (resp as any)?.output_text || '';
+        if (out) draftText = out;
+      } catch {}
+    }
+
+    res.status(200).json({ draft: { text: draftText }, meta: { tool, chatId } });
   } catch (e: any) {
     const hasProject = !!process.env.FIREBASE_PROJECT_ID;
     const hasEmail = !!process.env.FIREBASE_CLIENT_EMAIL;

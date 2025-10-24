@@ -1,0 +1,11 @@
+{
+  "name": "tripmate-api-functions",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "openai": "^4.67.3"
+  }
+}
+
+

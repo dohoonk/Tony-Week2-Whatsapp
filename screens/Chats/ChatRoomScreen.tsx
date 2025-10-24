@@ -51,6 +51,7 @@ export default function ChatRoomScreen() {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewText, setPreviewText] = useState<string>('');
   const [loadingDraft, setLoadingDraft] = useState(false);
+  const [menuForId, setMenuForId] = useState<string | null>(null);
 
   // Debug: compute last-read message id for current user (from readMap or lastReadAt)
   const lastReadMessageId = React.useMemo(() => {
@@ -392,6 +393,20 @@ export default function ChatRoomScreen() {
     }
   };
 
+  const onAIMenuAction = async (tool: 'summarize' | 'poll' | 'reminder' | 'trip') => {
+    try {
+      setMenuForId(null);
+      setLoadingDraft(true);
+      const draft = await fetchDraft(chatId, tool);
+      setPreviewText(draft.text || '');
+      setPreviewVisible(true);
+    } catch (e: any) {
+      Alert.alert('AI Draft failed', String(e?.message || e));
+    } finally {
+      setLoadingDraft(false);
+    }
+  };
+
   const loadOlder = async () => {
     if (loadingOlder || !hasMoreOlder || !oldestCursor) return;
     setLoadingOlder(true);
@@ -491,7 +506,7 @@ export default function ChatRoomScreen() {
           if (isMine) {
             const isLastRead = lastReadMessageId && item.id === lastReadMessageId;
             return (
-              <View style={{ marginBottom: 8, alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
+              <TouchableOpacity onLongPress={() => setMenuForId(item.id)} activeOpacity={0.9} style={{ marginBottom: 8, alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
                 {unread > 0 ? (
                   <Text style={{ fontSize: 10, color: '#999' }}>{unread}</Text>
                 ) : null}
@@ -501,13 +516,13 @@ export default function ChatRoomScreen() {
                 ) : (
                   <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1, color: isLastRead ? '#FF3B30' : undefined }}>{item.text}</Text>
                 )}
-              </View>
+              </TouchableOpacity>
             );
           }
           const sender = profileCache[item.senderId];
           if (!sender) ensureProfile(item.senderId);
           return (
-            <View style={{ marginBottom: 8, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+            <TouchableOpacity onLongPress={() => setMenuForId(item.id)} activeOpacity={0.9} style={{ marginBottom: 8, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
               <Image source={sender?.photoURL ? { uri: sender.photoURL } : undefined} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#ddd' }} />
               <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, maxWidth: BUBBLE_MAX }}>
                 <View style={{ maxWidth: BUBBLE_MAX }}>
@@ -522,7 +537,7 @@ export default function ChatRoomScreen() {
                 </View>
                 {timeStr ? <Text style={{ fontSize: 11, color: '#666' }}>{timeStr}</Text> : null}
               </View>
-            </View>
+            </TouchableOpacity>
           );
         }}
       />
@@ -571,6 +586,26 @@ export default function ChatRoomScreen() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      <Modal visible={!!menuForId} transparent animationType="fade" onRequestClose={() => setMenuForId(null)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'center', padding: 24 }} activeOpacity={1} onPress={() => setMenuForId(null)}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 16 }}>
+            <Text style={{ fontWeight: '600', fontSize: 16, marginBottom: 12 }}>TripMate AI</Text>
+            <TouchableOpacity onPress={() => onAIMenuAction('summarize')} style={{ paddingVertical: 10 }}>
+              <Text>Summarize thread</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onAIMenuAction('poll')} style={{ paddingVertical: 10 }}>
+              <Text>Create poll</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onAIMenuAction('reminder')} style={{ paddingVertical: 10 }}>
+              <Text>Add reminder</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onAIMenuAction('trip')} style={{ paddingVertical: 10 }}>
+              <Text>Plan trip</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       </Modal>
     </KeyboardAvoidingView>
   );

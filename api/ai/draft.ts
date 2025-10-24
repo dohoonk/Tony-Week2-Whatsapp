@@ -55,6 +55,7 @@ export default async function handler(req: any, res: any) {
       .reverse();
 
     let draftText = `[DRAFT:${tool}] placeholder`;
+    let itineraryOut: Array<{ date: string; items: string[] }> | null = null;
     // Weather summary (WeatherAPI) computed first; if available, we short‑circuit and return it
     let weatherSummary: string | null = null;
     if (tool === 'weather') {
@@ -194,6 +195,15 @@ export default async function handler(req: any, res: any) {
           prompt = `Draft a one-line reminder in plain text based on the conversation (no dates parsing yet).\nExample: "Reminder: Pay the Airbnb by Friday."\n\nChat (latest last):\n${context}`;
         } else if (tool === 'trip') {
           prompt = `Draft a short plain-text suggestion for next steps in trip planning (no markdown).\n\nChat (latest last):\n${context}`;
+        } else if (tool === 'itinerary') {
+          // Read trip dates for bounds
+          const tripSnap = await db.collection('trips').doc(chatId).get();
+          const startMs = tripSnap.exists ? ((tripSnap.data() as any)?.startDate ?? null) : null;
+          const endMs = tripSnap.exists ? ((tripSnap.data() as any)?.endDate ?? null) : null;
+          const startIso = startMs ? new Date(startMs).toISOString().slice(0,10) : '';
+          const endIso = endMs ? new Date(endMs).toISOString().slice(0,10) : '';
+          const bounds = startIso && endIso ? `Dates: ${startIso} to ${endIso}` : '';
+          prompt = `Create a JSON array itinerary between the given dates. Return ONLY valid JSON (no code fences, no commentary). Each entry: {"date":"YYYY-MM-DD","items":["...", "..."]}. Use 3-6 concise activities per day. ${bounds}\n\nChat context (latest last):\n${context}`;
         } else if (tool === 'weather') {
           // Fallback: if we couldn't compute a summary above and no API key, return guidance
           prompt = `Return this text as-is (no formatting): Weather summary unavailable.`;
@@ -202,10 +212,45 @@ export default async function handler(req: any, res: any) {
         }
         const resp = await client.responses.create({ model: 'gpt-4.1-mini', input: prompt });
         const out = (resp as any)?.output_text || '';
-        if (out) draftText = out;
+        if (tool === 'itinerary') {
+          // Try strict JSON parse, fallback to bracket extraction
+          let parsed: any = null;
+          try { parsed = JSON.parse(out); } catch {}
+          if (!Array.isArray(parsed)) {
+            try {
+              const startIdx = out.indexOf('[');
+              const endIdx = out.lastIndexOf(']');
+              if (startIdx >= 0 && endIdx > startIdx) {
+                const slice = out.slice(startIdx, endIdx + 1);
+                parsed = JSON.parse(slice);
+              }
+            } catch {}
+          }
+          if (Array.isArray(parsed)) {
+            itineraryOut = parsed.map((d: any) => ({ date: String(d?.date || ''), items: Array.isArray(d?.items) ? d.items.map((x: any) => String(x)) : [] }));
+          } else {
+            // As a fallback, construct empty itinerary for the date range
+            const tripSnap = await db.collection('trips').doc(chatId).get();
+            const s = tripSnap.exists ? ((tripSnap.data() as any)?.startDate ?? null) : null;
+            const e = tripSnap.exists ? ((tripSnap.data() as any)?.endDate ?? null) : null;
+            const arr: Array<{ date: string; items: string[] }> = [];
+            if (s && e && e >= s) {
+              for (let t = s; t <= e; t += 24*3600*1000) {
+                arr.push({ date: new Date(t).toISOString().slice(0,10), items: [] });
+              }
+            }
+            itineraryOut = arr;
+          }
+        } else if (out) {
+          draftText = out;
+        }
       } catch {}
     }
 
+    if (tool === 'itinerary') {
+      res.status(200).json({ itinerary: itineraryOut ?? [], meta: { tool, chatId } });
+      return;
+    }
     res.status(200).json({ draft: { text: draftText }, meta: { tool, chatId } });
   } catch (e: any) {
     const hasProject = !!process.env.FIREBASE_PROJECT_ID;

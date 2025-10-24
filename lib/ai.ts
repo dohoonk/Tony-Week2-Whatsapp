@@ -79,4 +79,21 @@ export async function fetchTripWeather(chatId: string, city: string, start: stri
   return await res.json();
 }
 
+export async function fetchItinerary(chatId: string): Promise<Array<{ date: string; items: string[] }>> {
+  if (!API_BASE) throw new Error('Missing EXPO_PUBLIC_AI_API_URL');
+  const token = await auth.currentUser?.getIdToken(true);
+  if (!token) throw new Error('Missing auth token');
+  const res = await fetch(`${API_BASE}/api/ai/draft`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify({ chatId, tool: 'itinerary' }),
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Itinerary failed: ${res.status} ${msg}`);
+  }
+  const json = await res.json();
+  return Array.isArray(json.itinerary) ? json.itinerary : [];
+}
+
 

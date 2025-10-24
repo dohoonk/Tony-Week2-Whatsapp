@@ -4,7 +4,7 @@ import { RouteProp, useRoute } from '@react-navigation/native';
 import { TripsStackParamList } from '../../navigation/TripsStack';
 import { db } from '../../firebase/config';
 import { doc, onSnapshot, updateDoc, getDoc } from 'firebase/firestore';
-import { fetchTripWeather } from '../../lib/ai';
+import { fetchItinerary, fetchTripWeather } from '../../lib/ai';
 
 export default function TripPlannerScreen() {
   const route = useRoute<RouteProp<TripsStackParamList, 'TripPlanner'>>();
@@ -147,6 +147,21 @@ export default function TripPlannerScreen() {
     }
   };
 
+  const generateItinerary = async () => {
+    if (!chatId) return;
+    try {
+      const gen = await fetchItinerary(chatId);
+      if (Array.isArray(gen) && gen.length > 0) {
+        // Clamp to current range if available
+        const { start, end } = computeStartEndIso();
+        const filtered = (start && end) ? gen.filter((d) => d.date >= start && d.date <= end) : gen;
+        setItinerary(filtered.map((d) => ({ date: d.date, items: Array.from(new Set(d.items || [])) })));
+      }
+    } catch (e: any) {
+      Alert.alert('Generate failed', String(e?.message || e));
+    }
+  };
+
   return (
     <View style={{ flex: 1, padding: 16 }}>
       <Text style={{ fontSize: 20, fontWeight: '600' }}>{trip?.title || 'Trip Planner'}</Text>
@@ -158,6 +173,7 @@ export default function TripPlannerScreen() {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
         <Text style={{ fontSize: 16, fontWeight: '600' }}>Itinerary</Text>
         <View style={{ flexDirection: 'row', gap: 16 }}>
+          <TouchableOpacity onPress={generateItinerary}><Text style={{ color: '#2563EB' }}>Generate</Text></TouchableOpacity>
           <TouchableOpacity onPress={loadWeather}><Text style={{ color: '#2563EB' }}>Refresh weather</Text></TouchableOpacity>
           <TouchableOpacity onPress={addDay}><Text style={{ color: '#2563EB' }}>Add day</Text></TouchableOpacity>
           <TouchableOpacity onPress={saveItinerary}><Text style={{ color: '#2563EB' }}>Save</Text></TouchableOpacity>

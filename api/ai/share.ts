@@ -114,10 +114,29 @@ export default async function handler(req: any, res: any) {
       await chatRef.update({ lastMessage: msgText, lastMessageAt: now });
     } else if (tool === 'trip') {
       // Create a trip doc and link to chat
+      // Try to derive a useful title: Destination - startDate - endDate
+      const raw: string = String(draft.text || '');
+      const months = '(January|February|March|April|May|June|July|August|September|October|November|December)';
+      const isoDate = /(\d{4}-\d{2}-\d{2})/g;
+      const slashDate = /(\d{1,2}\/\d{1,2}\/\d{2,4})/g;
+      const monthDate = new RegExp(`${months}\\s+\\d{1,2}(?:,\\s*\\d{4})?`, 'gi');
+      const destinationMatch = raw.match(/(?:Destination\s*:\s*|to\s+|in\s+)([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3})/);
+      const dest = destinationMatch?.[1] || 'Trip';
+      const dates: string[] = [];
+      const collect = (re: RegExp) => {
+        let m: RegExpExecArray | null;
+        const r = new RegExp(re.source, re.flags);
+        while ((m = r.exec(raw)) !== null) dates.push(m[1]);
+      };
+      collect(isoDate); collect(slashDate); collect(monthDate);
+      const startStr = dates[0] || 'TBD';
+      const endStr = dates[1] || (dates[0] ? dates[0] : 'TBD');
+      const title = `${dest} - ${startStr} - ${endStr}`;
+
       const trip = {
         chatId,
         members,
-        title: 'Trip Plan',
+        title,
         notes: String(draft.text || ''),
         createdBy: decoded.uid,
         createdAt: now,

@@ -61,7 +61,7 @@ export default async function handler(req: any, res: any) {
       const reminder = {
         chatId,
         title: String(draft.text || '').trim(),
-        dueAt, // may be null if not parsed
+        dueAt: typeof draft?.dueAt === 'number' ? draft.dueAt : dueAt, // respect client override
         status: 'scheduled',
         members,
         createdBy: decoded.uid,

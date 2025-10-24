@@ -22,7 +22,7 @@ export async function fetchDraft(chatId: string, tool: string): Promise<{ text: 
   return json.draft as { text: string };
 }
 
-export async function shareDraft(chatId: string, tool: string, draftText: string): Promise<void> {
+export async function shareDraft(chatId: string, tool: string, draftText: string, dueAt?: number | null): Promise<void> {
   if (!API_BASE) throw new Error('Missing EXPO_PUBLIC_AI_API_URL');
   const token = await auth.currentUser?.getIdToken(true);
   if (!token) throw new Error('Missing auth token');
@@ -32,7 +32,7 @@ export async function shareDraft(chatId: string, tool: string, draftText: string
       'content-type': 'application/json',
       authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ chatId, tool, draft: { text: draftText } }),
+    body: JSON.stringify({ chatId, tool, draft: { text: draftText, dueAt: typeof dueAt === 'number' ? dueAt : undefined } }),
   });
   if (!res.ok) {
     const msg = await res.text();

@@ -55,6 +55,7 @@ export default function ChatRoomScreen() {
   const [loadingDraft, setLoadingDraft] = useState(false);
   const [menuForId, setMenuForId] = useState<string | null>(null);
   const [currentTool, setCurrentTool] = useState<'summarize' | 'poll' | 'reminder' | 'trip' | 'weather'>('summarize');
+  const [reminderDueAt, setReminderDueAt] = useState<number | null>(null);
 
   // Debug: compute last-read message id for current user (from readMap or lastReadAt)
   const lastReadMessageId = React.useMemo(() => {
@@ -403,6 +404,10 @@ export default function ChatRoomScreen() {
       setMenuForId(null);
       setLoadingDraft(true);
       setCurrentTool(tool);
+      if (tool === 'reminder' && !reminderDueAt) {
+        // default to 1 hour from now
+        setReminderDueAt(Date.now() + 60 * 60 * 1000);
+      }
       const draft = await fetchDraft(chatId, tool);
       setPreviewText(draft.text || '');
       setPreviewVisible(true);
@@ -600,12 +605,24 @@ export default function ChatRoomScreen() {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 16 }}>
           <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 16 }}>
             <Text style={{ fontWeight: '600', fontSize: 16, marginBottom: 8 }}>AI Draft ({currentTool})</Text>
-            <Text style={{ marginBottom: 16 }}>{previewText}</Text>
+            {currentTool === 'reminder' ? (
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ marginBottom: 8 }}>{previewText}</Text>
+                <Text style={{ fontWeight: '500', marginBottom: 4 }}>Send at</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Button title="-15m" onPress={() => setReminderDueAt((d) => (d ? d - 15 * 60 * 1000 : Date.now()))} />
+                  <Button title="+15m" onPress={() => setReminderDueAt((d) => (d ? d + 15 * 60 * 1000 : Date.now()))} />
+                  <Text>{reminderDueAt ? new Date(reminderDueAt).toLocaleString() : 'unset'}</Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={{ marginBottom: 16 }}>{previewText}</Text>
+            )}
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
               <TouchableOpacity onPress={() => setPreviewVisible(false)}>
                 <Text style={{ color: '#666' }}>Discard</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={async () => { try { await shareDraft(chatId, currentTool, previewText); setPreviewVisible(false); } catch (e: any) { Alert.alert('Share failed', String(e?.message || e)); } }}>
+              <TouchableOpacity onPress={async () => { try { await shareDraft(chatId, currentTool, previewText, currentTool === 'reminder' ? reminderDueAt ?? undefined : undefined); setPreviewVisible(false); } catch (e: any) { Alert.alert('Share failed', String(e?.message || e)); } }}>
                 <Text style={{ color: '#007AFF' }}>Share</Text>
               </TouchableOpacity>
             </View>

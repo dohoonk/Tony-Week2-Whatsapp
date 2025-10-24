@@ -59,91 +59,111 @@ export default async function handler(req: any, res: any) {
     let weatherSummary: string | null = null;
     if (tool === 'weather') {
       try {
-        const contextStr = messages.map((m: any) => m.text || '').join(' ');
-        const locMatch = /\b(?:weather\s+(?:in|at|for)\s+|(?:in|at|to)\s+)([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2})\b/i.exec(contextStr);
-        const city = (locMatch?.[1] || '').trim();
-
-        // Parse date range: supports YYYY-MM-DD, M/D/YYYY, and "November 2" forms
-        const isoDates = Array.from(contextStr.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)).map(m => m[0]);
-        const slashDates = Array.from(contextStr.matchAll(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/g)).map(m => {
-          const y = m[3].length === 2 ? `20${m[3]}` : m[3];
-          const mm = String(m[1]).padStart(2, '0');
-          const dd = String(m[2]).padStart(2, '0');
-          return `${y}-${mm}-${dd}`;
-        });
-        const monthNames = '(January|February|March|April|May|June|July|August|September|October|November|December)';
-        const monthDates = Array.from(contextStr.matchAll(new RegExp(`\b${monthNames}\\s+(\d{1,2})(?:,\\s*(\d{4}))?`, 'gi'))).map(m => {
-          const monthIndex = [
-            'january','february','march','april','may','june','july','august','september','october','november','december'
-          ].indexOf(m[1].toLowerCase());
-          const year = m[2] ? parseInt(m[2], 10) : (new Date()).getFullYear();
-          const mm = String(monthIndex + 1).padStart(2, '0');
-          const dd = String(parseInt(m[2] ? m[3] : m[2] || m[2], 10) || parseInt(m[2]||'0', 10)).padStart(2,'0');
-          // m indices are messy above; recompute from regex groups safely
-          const day = String(parseInt(m[2] ? m[2] : m[2] || '0', 10));
-          const dd2 = String(parseInt(m[2] ? m[2] : (m[2] as any) || '0', 10));
-          const dInt = parseInt(m[2] as any, 10);
-          const dayNum = isNaN(dInt) ? parseInt(m[2] as any, 10) : dInt;
-          const ddFinal = String(dayNum).padStart(2, '0');
-          return `${year}-${mm}-${ddFinal}`;
-        }).filter(Boolean);
-
-        // Consolidate and sort unique dates
-        let dates: string[] = Array.from(new Set([...isoDates, ...slashDates, ...monthDates]));
-        dates.sort();
-        if (dates.length === 1) dates = [dates[0], dates[0]]; // single date → same start/end
-
         const wxKey = process.env.WEATHERAPI_KEY as string | undefined;
-        if (wxKey && city) {
-          const today = new Date();
-          const toISO = (d: Date) => d.toISOString().slice(0,10);
-          const start = dates[0] || toISO(today);
-          const end = dates[1] || start;
-          const dayDiff = (Date.parse(end) - Date.parse(start)) / (24*3600*1000);
 
-          const results: { date: string; lo: number; hi: number; cond: string }[] = [];
-          const within14 = (Date.parse(start) - Date.now())/(24*3600*1000) <= 14 && (Date.parse(end) - Date.now())/(24*3600*1000) <= 14;
-          if (within14) {
-            // Use forecast.json up to 14 days
-            const daysNeeded = Math.min(14, Math.max(1, Math.ceil((Date.parse(end) - Date.now())/(24*3600*1000)) + 1));
-            const url = `https://api.weatherapi.com/v1/forecast.json?key=${wxKey}&q=${encodeURIComponent(city)}&days=${daysNeeded}&aqi=no&alerts=no`;
-            const resp = await fetch(url);
-            if (resp.ok) {
-              const data: any = await resp.json();
-              const fdays: any[] = Array.isArray(data?.forecast?.forecastday) ? data.forecast.forecastday : [];
-              for (const d of fdays) {
-                const dateStr = d?.date as string;
-                if (dateStr >= start && dateStr <= end) {
-                  results.push({ date: dateStr, lo: Math.round(d?.day?.mintemp_f ?? 0), hi: Math.round(d?.day?.maxtemp_f ?? 0), cond: (d?.day?.condition?.text as string) || '—' });
-                }
+        // Helper: normalize dates found in the text to ISO (YYYY-MM-DD)
+        const toISODates = (text: string): string[] => {
+          const out: string[] = [];
+          // ISO
+          const iso = Array.from(text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g));
+          iso.forEach((m: any) => out.push(m[0]));
+          // Slash
+          const slash = Array.from(text.matchAll(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/g));
+          slash.forEach((m: any) => {
+            const y = (m[3].length === 2 ? `20${m[3]}` : m[3]);
+            const mm = String(parseInt(m[1], 10)).padStart(2, '0');
+            const dd = String(parseInt(m[2], 10)).padStart(2, '0');
+            out.push(`${y}-${mm}-${dd}`);
+          });
+          // Month names
+          const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+          const monthRe = new RegExp(`\\b(${months.join('|')})\\s+(\\d{1,2})(?:,\\s*(\\d{4}))?`, 'gi');
+          let mmatch: RegExpExecArray | null;
+          while ((mmatch = monthRe.exec(text)) !== null) {
+            const idx = months.indexOf(mmatch[1].toLowerCase());
+            const year = mmatch[3] ? parseInt(mmatch[3], 10) : (new Date()).getFullYear();
+            const mm = String(idx + 1).padStart(2, '0');
+            const dd = String(parseInt(mmatch[2], 10)).padStart(2, '0');
+            out.push(`${year}-${mm}-${dd}`);
+          }
+          return out;
+        };
+
+        // Extract potential city phrase strictly from patterns and trim at delimiters
+        let cityPhrase = '';
+        const cleaned = messages.map((m: any) => String(m.text || '')).join(' ').replace(/[“”"']/g, '');
+        const strict = /weather\s+(?:in|at|for)\s+([A-Za-z][A-Za-z\s]{1,40}?)(?=\s+(?:from|to|on|,|\.|\n)|$)/i.exec(cleaned);
+        if (strict) cityPhrase = (strict[1] || '').trim();
+        if (!cityPhrase) {
+          const looser = /\b(?:in|at|to)\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2})\b/.exec(cleaned);
+          if (looser) cityPhrase = (looser[1] || '').trim();
+        }
+        // Reject obvious non-city phrases
+        if (/chat|thread|message/i.test(cityPhrase)) cityPhrase = '';
+        if (cityPhrase && /[^A-Za-z\s]/.test(cityPhrase)) cityPhrase = '';
+
+        const allDates = toISODates(cleaned).sort();
+        const today = new Date();
+        const toISO = (d: Date) => d.toISOString().slice(0,10);
+        const start = allDates[0] || toISO(today);
+        const end = allDates[1] || start;
+
+        if (wxKey && cityPhrase) {
+          // Validate/resolve city via WeatherAPI search, use lat,lon for certainty
+          let resolved: { name: string; lat: number; lon: number; country: string } | null = null;
+          try {
+            const sUrl = `https://api.weatherapi.com/v1/search.json?key=${wxKey}&q=${encodeURIComponent(cityPhrase)}`;
+            const sResp = await fetch(sUrl);
+            if (sResp.ok) {
+              const arr: any[] = await sResp.json();
+              if (Array.isArray(arr) && arr.length > 0) {
+                const top = arr[0] as any;
+                resolved = { name: String(top?.name || cityPhrase), lat: Number(top?.lat || 0), lon: Number(top?.lon || 0), country: String(top?.country || '') };
               }
             }
-          } else {
-            // Use future.json per date (up to 365 days)
-            const dateList: string[] = [];
-            for (let t = Date.parse(start); t <= Date.parse(end); t += 24*3600*1000) {
-              dateList.push(new Date(t).toISOString().slice(0,10));
-            }
-            for (const dt of dateList) {
-              const url = `https://api.weatherapi.com/v1/future.json?key=${wxKey}&q=${encodeURIComponent(city)}&dt=${dt}`;
+          } catch {}
+
+          if (resolved) {
+            const q = `${resolved.lat},${resolved.lon}`;
+            const results: { date: string; lo: number; hi: number; cond: string }[] = [];
+            const within14 = (Date.parse(start) - Date.now())/(24*3600*1000) <= 14 && (Date.parse(end) - Date.now())/(24*3600*1000) <= 14;
+            if (within14) {
+              const daysNeeded = Math.min(14, Math.max(1, Math.ceil((Date.parse(end) - Date.now())/(24*3600*1000)) + 1));
+              const url = `https://api.weatherapi.com/v1/forecast.json?key=${wxKey}&q=${encodeURIComponent(q)}&days=${daysNeeded}&aqi=no&alerts=no`;
               const resp = await fetch(url);
               if (resp.ok) {
                 const data: any = await resp.json();
-                const day = data?.forecast?.forecastday?.[0]?.day;
-                if (day) {
-                  results.push({ date: dt, lo: Math.round(day?.mintemp_f ?? 0), hi: Math.round(day?.maxtemp_f ?? 0), cond: (day?.condition?.text as string) || '—' });
+                const fdays: any[] = Array.isArray(data?.forecast?.forecastday) ? data.forecast.forecastday : [];
+                for (const d of fdays) {
+                  const dateStr = String(d?.date || '');
+                  if (dateStr >= start && dateStr <= end) {
+                    results.push({ date: dateStr, lo: Math.round(d?.day?.mintemp_f ?? 0), hi: Math.round(d?.day?.maxtemp_f ?? 0), cond: String(d?.day?.condition?.text || '—') });
+                  }
+                }
+              }
+            } else {
+              for (let t = Date.parse(start); t <= Date.parse(end); t += 24*3600*1000) {
+                const dt = new Date(t).toISOString().slice(0,10);
+                const url = `https://api.weatherapi.com/v1/future.json?key=${wxKey}&q=${encodeURIComponent(q)}&dt=${dt}`;
+                const resp = await fetch(url);
+                if (resp.ok) {
+                  const data: any = await resp.json();
+                  const day = data?.forecast?.forecastday?.[0]?.day;
+                  if (day) {
+                    results.push({ date: dt, lo: Math.round(day?.mintemp_f ?? 0), hi: Math.round(day?.maxtemp_f ?? 0), cond: String(day?.condition?.text || '—') });
+                  }
                 }
               }
             }
-          }
-          if (results.length > 0) {
-            const parts = results.map(r => `${r.date}: ${r.lo}°F–${r.hi}°F, ${r.cond}`);
-            weatherSummary = `Weather for ${city} (${start} → ${end})\n` + parts.join('\n');
+            if (results.length > 0) {
+              const parts = results.map(r => `${r.date}: ${r.lo}°F–${r.hi}°F, ${r.cond}`);
+              weatherSummary = `Weather for ${resolved.name} (${start} → ${end})\n` + parts.join('\n');
+            }
           }
         }
         if (!weatherSummary) {
-          weatherSummary = city
-            ? `Weather summary is unavailable right now for ${city}.`
+          weatherSummary = cityPhrase
+            ? `Weather summary is unavailable right now for ${cityPhrase}.`
             : 'Weather summary unavailable: specify a city (e.g., “Weather in Denver”).';
         }
       } catch {}

@@ -36,10 +36,32 @@ export default async function handler(req: any, res: any) {
     const now = Date.now();
     if (tool === 'reminder') {
       // Create reminder doc
+      // naive parsing: time like "7:30 PM" and words today/tomorrow
+      const raw = String(draft.text || '');
+      let dueAt: number | null = null;
+      try {
+        const timeMatch = raw.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        const isTomorrow = /tomorrow/i.test(raw);
+        const isToday = /today/i.test(raw);
+        if (timeMatch) {
+          const hour = parseInt(timeMatch[1], 10);
+          const minute = parseInt(timeMatch[2], 10);
+          const ampm = timeMatch[3].toUpperCase();
+          let h24 = hour % 12 + (ampm === 'PM' ? 12 : 0);
+          const base = new Date();
+          if (isTomorrow) base.setDate(base.getDate() + 1);
+          if (!isTomorrow && !isToday) {
+            // default to today
+          }
+          base.setHours(h24, minute, 0, 0);
+          dueAt = base.getTime();
+        }
+      } catch {}
+
       const reminder = {
         chatId,
         title: String(draft.text || '').trim(),
-        dueAt: null, // parsing to be added later
+        dueAt, // may be null if not parsed
         status: 'scheduled',
         members,
         createdBy: decoded.uid,

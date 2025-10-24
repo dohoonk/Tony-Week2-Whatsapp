@@ -49,8 +49,8 @@ export default async function handler(req: any, res: any) {
     const msgsSnap = await db.collection('chats').doc(chatId).collection('messages')
       .orderBy('timestamp', 'desc').limit(250).get();
     const messages = msgsSnap.docs
-      .map(d => ({ id: d.id, ...(d.data() as any) }))
-      .filter(m => !m.imageUrl && m.type !== 'ai_response' && m.type !== 'system')
+      .map((d: any) => ({ id: d.id, ...(d.data() as any) }))
+      .filter((m: any) => !m.imageUrl && m.type !== 'ai_response' && m.type !== 'system')
       .slice(0, 200)
       .reverse();
 
@@ -67,6 +67,13 @@ export default async function handler(req: any, res: any) {
           prompt = `Summarize this group chat succinctly for all members. Plain text only.\n\nChat (latest last):\n${context}`;
         } else if (tool === 'poll') {
           prompt = `You are drafting a group poll based on the conversation. Use only plain text.\nFormat exactly:\nQuestion: <one concise question>\nOptions:\n- <option 1>\n- <option 2>\n- <option 3>\n- <option 4 (optional)>\n- <option 5 (optional)>\nKeep options mutually exclusive and short.\n\nChat (latest last):\n${context}`;
+        } else if (tool === 'poll_summary') {
+          const p = (body as any)?.poll;
+          const q = p?.question || '';
+          const opts: string[] = Array.isArray(p?.options) ? p.options : [];
+          const counts: number[] = Array.isArray(p?.counts) ? p.counts : [];
+          const lines = opts.map((o, i) => `- ${o}: ${counts[i] ?? 0}`).join('\\n');
+          prompt = `Summarize poll results in a single plain-text sentence (no markdown).\nQuestion: ${q}\nResults:\n${lines}`;
         } else if (tool === 'reminder') {
           prompt = `Draft a one-line reminder in plain text based on the conversation (no dates parsing yet).\nExample: "Reminder: Pay the Airbnb by Friday."\n\nChat (latest last):\n${context}`;
         } else if (tool === 'trip') {

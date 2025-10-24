@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { db } from '../firebase/config';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { auth } from '../firebase/config';
+import { fetchPollSummary } from '../lib/ai';
 
 type Poll = {
   question: string;
@@ -67,10 +68,18 @@ export default function PollCard({ pollId, chatId, members }: PollCardProps) {
           Object.values(votes).forEach((idx) => {
             if (typeof idx === 'number' && idx >= 0 && idx < counts.length) counts[idx] += 1;
           });
-          const max = Math.max(...counts);
-          const winningIdx = counts.findIndex((c) => c === max);
-          const winner = poll.options[winningIdx];
-          const msg = `Poll closed: ${poll.question}\nResult: ${winner} (${max}/${numVoters})`;
+          // Ask AI for one-line summary
+          let msg = '';
+          try {
+            const res = await fetchPollSummary(chatId, { question: poll.question, options: poll.options, counts });
+            msg = res.text || '';
+          } catch {}
+          if (!msg) {
+            const max = Math.max(...counts);
+            const winningIdx = counts.findIndex((c) => c === max);
+            const winner = poll.options[winningIdx];
+            msg = `Poll closed: ${poll.question}\nResult: ${winner} (${max}/${numVoters})`;
+          }
           await updateDoc(doc(db, 'chats', chatId), { lastMessage: msg, lastMessageAt: Date.now() });
           // Post summary message
           const { collection, addDoc } = await import('firebase/firestore');

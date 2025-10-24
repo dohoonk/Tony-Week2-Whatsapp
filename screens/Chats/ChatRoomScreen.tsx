@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { uploadChatImage } from '../../firebase/storageService';
 import { showLocalNotification } from '../../lib/notifications';
 import { fetchDraft, shareDraft } from '../../lib/ai';
+import PollCard from '../../components/PollCard';
 
 type Message = {
   id: string;
@@ -520,6 +521,13 @@ export default function ChatRoomScreen() {
                   <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1, color: isLastRead ? '#FF3B30' : undefined }}>{item.text}</Text>
                 )}
               </TouchableOpacity>
+            );
+          }
+          if (isAI && item?.relatedFeature === 'poll' && item?.relatedId) {
+            return (
+              <View style={{ marginBottom: 8, alignSelf: 'stretch' }}>
+                <PollCard pollId={String(item.relatedId)} />
+              </View>
             );
           }
           if (isAI) {

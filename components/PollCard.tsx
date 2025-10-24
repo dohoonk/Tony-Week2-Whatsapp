@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { db } from '../firebase/config';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, runTransaction, collection, addDoc } from 'firebase/firestore';
 import { auth } from '../firebase/config';
 import { fetchPollSummary } from '../lib/ai';
 
@@ -61,39 +61,42 @@ export default function PollCard({ pollId, chatId, members }: PollCardProps) {
     if (totalMembers > 0 && numVoters >= totalMembers) {
       (async () => {
         try {
-          // Close poll
-          await updateDoc(doc(db, 'polls', pollId), { status: 'closed' });
-          // Compute result
-          const counts = new Array(poll.options.length).fill(0);
-          Object.values(votes).forEach((idx) => {
-            if (typeof idx === 'number' && idx >= 0 && idx < counts.length) counts[idx] += 1;
+          const pRef = doc(db, 'polls', pollId);
+          const summary = await runTransaction(db, async (tx) => {
+            const snap = await tx.get(pRef);
+            if (!snap.exists()) return null as any;
+            const p: any = snap.data();
+            if (p.status === 'closed' && p.resultPosted) return null as any;
+            const v: Record<string, number> = p.votes || {};
+            const countsTx = new Array((p.options || []).length).fill(0);
+            Object.values(v).forEach((idx: any) => {
+              if (typeof idx === 'number' && idx >= 0 && idx < countsTx.length) countsTx[idx] += 1;
+            });
+            tx.update(pRef, { status: 'closed', resultPosted: true } as any);
+            const parts = (p.options || []).map((o: string, i: number) => `${o} ${countsTx[i] || 0}`);
+            const text = `Poll closed: ${p.question} — Result: ${parts.join(', ')}`;
+            return { text, counts: countsTx, options: p.options || [], question: p.question };
           });
-          // Ask AI for one-line summary
-          let msg = '';
-          try {
-            const res = await fetchPollSummary(chatId, { question: poll.question, options: poll.options, counts });
-            msg = res.text || '';
-          } catch {}
-          if (!msg) {
-            const max = Math.max(...counts);
-            const winningIdx = counts.findIndex((c) => c === max);
-            const winner = poll.options[winningIdx];
-            msg = `Poll closed: ${poll.question}\nResult: ${winner} (${max}/${numVoters})`;
+
+          if (summary) {
+            let msg = summary.text;
+            try {
+              const res = await fetchPollSummary(chatId, { question: summary.question, options: summary.options, counts: summary.counts });
+              if (res?.text) msg = res.text;
+            } catch {}
+            await updateDoc(doc(db, 'chats', chatId), { lastMessage: msg, lastMessageAt: Date.now() });
+            await addDoc(collection(db, 'chats', chatId, 'messages'), {
+              senderId: 'ai',
+              text: msg,
+              imageUrl: null,
+              timestamp: Date.now(),
+              type: 'ai_response',
+              visibility: 'shared',
+              relatedFeature: 'poll_result',
+              relatedId: pollId,
+              createdBy: auth.currentUser?.uid || 'system',
+            } as any);
           }
-          await updateDoc(doc(db, 'chats', chatId), { lastMessage: msg, lastMessageAt: Date.now() });
-          // Post summary message
-          const { collection, addDoc } = await import('firebase/firestore');
-          await addDoc(collection(db, 'chats', chatId, 'messages'), {
-            senderId: 'ai',
-            text: msg,
-            imageUrl: null,
-            timestamp: Date.now(),
-            type: 'ai_response',
-            visibility: 'shared',
-            relatedFeature: 'poll_result',
-            relatedId: pollId,
-            createdBy: auth.currentUser?.uid || 'system',
-          } as any);
         } catch {}
       })();
     }

@@ -112,6 +112,29 @@ export default async function handler(req: any, res: any) {
         createdBy: decoded.uid,
       });
       await chatRef.update({ lastMessage: msgText, lastMessageAt: now });
+    } else if (tool === 'trip') {
+      // Create a trip doc and link to chat
+      const trip = {
+        chatId,
+        members,
+        title: 'Trip Plan',
+        notes: String(draft.text || ''),
+        createdBy: decoded.uid,
+        createdAt: now,
+      } as any;
+      const tripRef = await db.collection('trips').add(trip);
+      await chatRef.update({ tripId: tripRef.id, lastMessage: 'Trip plan created', lastMessageAt: now });
+      await chatRef.collection('messages').add({
+        senderId: 'ai',
+        text: 'Trip plan created',
+        imageUrl: null,
+        timestamp: now,
+        type: 'ai_response',
+        visibility: 'shared',
+        relatedFeature: 'trip',
+        relatedId: tripRef.id,
+        createdBy: decoded.uid,
+      });
     } else {
       // Default: post AI response message
       await chatRef.collection('messages').add({

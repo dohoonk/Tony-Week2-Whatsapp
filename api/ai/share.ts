@@ -34,17 +34,46 @@ export default async function handler(req: any, res: any) {
     const members: string[] = Array.isArray((chatSnap.data() as any)?.members) ? (chatSnap.data() as any).members : [];
     if (!members.includes(decoded.uid)) { res.status(403).json({ error: 'Forbidden' }); return; }
     const now = Date.now();
-    await chatRef.collection('messages').add({
-      senderId: 'ai',
-      text: String(draft.text || ''),
-      imageUrl: null,
-      timestamp: now,
-      type: 'ai_response',
-      visibility: 'shared',
-      relatedFeature: tool || 'ai',
-      createdBy: decoded.uid,
-    });
-    await chatRef.update({ lastMessage: String(draft.text || ''), lastMessageAt: now });
+    if (tool === 'reminder') {
+      // Create reminder doc
+      const reminder = {
+        chatId,
+        title: String(draft.text || '').trim(),
+        dueAt: null, // parsing to be added later
+        status: 'scheduled',
+        members,
+        createdBy: decoded.uid,
+        createdAt: now,
+      };
+      const reminderRef = await db.collection('reminders').add(reminder);
+      // Post a reference message in chat
+      const msgText = `Reminder set: ${reminder.title}`;
+      await chatRef.collection('messages').add({
+        senderId: 'ai',
+        text: msgText,
+        imageUrl: null,
+        timestamp: now,
+        type: 'ai_response',
+        visibility: 'shared',
+        relatedFeature: 'reminder',
+        relatedId: reminderRef.id,
+        createdBy: decoded.uid,
+      });
+      await chatRef.update({ lastMessage: msgText, lastMessageAt: now });
+    } else {
+      // Default: post AI response message
+      await chatRef.collection('messages').add({
+        senderId: 'ai',
+        text: String(draft.text || ''),
+        imageUrl: null,
+        timestamp: now,
+        type: 'ai_response',
+        visibility: 'shared',
+        relatedFeature: tool || 'ai',
+        createdBy: decoded.uid,
+      });
+      await chatRef.update({ lastMessage: String(draft.text || ''), lastMessageAt: now });
+    }
     res.status(200).json({ ok: true });
   } catch (e: any) {
     const hasProject = !!process.env.FIREBASE_PROJECT_ID;

@@ -3,7 +3,7 @@ import { View, Text, FlatList, TextInput, TouchableOpacity, Alert } from 'react-
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { TripsStackParamList } from '../../navigation/TripsStack';
 import { db } from '../../firebase/config';
-import { doc, onSnapshot, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, getDoc, addDoc, collection } from 'firebase/firestore';
 import { fetchItinerary, fetchTripWeather } from '../../lib/ai';
 
 export default function TripPlannerScreen() {
@@ -162,6 +162,37 @@ export default function TripPlannerScreen() {
     }
   };
 
+  const postToChat = async () => {
+    try {
+      if (!trip?.chatId) return;
+      const title = String(trip?.title || 'Trip');
+      const { start, end } = computeStartEndIso();
+      const header = `${title}${start || end ? ` (${start || '—'} → ${end || '—'})` : ''}`;
+      const lines: string[] = [];
+      itinerary.forEach((d) => {
+        lines.push(`${d.date}`);
+        (d.items || []).forEach((it) => lines.push(`- ${it}`));
+      });
+      const body = lines.length > 0 ? lines.join('\n') : 'No items yet.';
+      const text = `${header}\n${body}`;
+      await addDoc(collection(db, 'chats', trip.chatId, 'messages'), {
+        senderId: 'ai',
+        text,
+        imageUrl: null,
+        timestamp: Date.now(),
+        type: 'ai_response',
+        visibility: 'shared',
+        relatedFeature: 'trip',
+        relatedId: trip.chatId,
+        createdBy: 'system',
+      } as any);
+      await updateDoc(doc(db, 'chats', trip.chatId), { lastMessage: `Trip shared: ${title}`, lastMessageAt: Date.now() } as any);
+      Alert.alert('Shared', 'Trip posted to the chat');
+    } catch (e: any) {
+      Alert.alert('Share failed', String(e?.message || e));
+    }
+  };
+
   return (
     <View style={{ flex: 1, padding: 16 }}>
       <Text style={{ fontSize: 20, fontWeight: '600' }}>{trip?.title || 'Trip Planner'}</Text>
@@ -177,6 +208,7 @@ export default function TripPlannerScreen() {
           <TouchableOpacity onPress={loadWeather}><Text style={{ color: '#2563EB' }}>Refresh weather</Text></TouchableOpacity>
           <TouchableOpacity onPress={addDay}><Text style={{ color: '#2563EB' }}>Add day</Text></TouchableOpacity>
           <TouchableOpacity onPress={saveItinerary}><Text style={{ color: '#2563EB' }}>Save</Text></TouchableOpacity>
+          <TouchableOpacity onPress={postToChat}><Text style={{ color: '#2563EB' }}>Post to chat</Text></TouchableOpacity>
         </View>
       </View>
       {weatherWarn ? <Text style={{ color: '#EF4444', marginTop: 4 }}>{weatherWarn}</Text> : null}

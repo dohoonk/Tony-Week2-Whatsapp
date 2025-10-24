@@ -495,6 +495,7 @@ export default function ChatRoomScreen() {
           }
           const myUid = auth.currentUser?.uid;
           const isMine = item.senderId === myUid;
+          const isAI = item.senderId === 'ai' || item.type === 'ai_response';
           // unread count for recipients (exclude sender)
           const otherMembers = members.filter((id) => id !== item.senderId);
           const readers = otherMembers.filter((id) => {
@@ -517,6 +518,14 @@ export default function ChatRoomScreen() {
                   <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1, color: isLastRead ? '#FF3B30' : undefined }}>{item.text}</Text>
                 )}
               </TouchableOpacity>
+            );
+          }
+          if (isAI) {
+            return (
+              <View style={{ marginBottom: 8, alignSelf: 'flex-start', maxWidth: BUBBLE_MAX }}>
+                <Text style={{ fontSize: 11, color: '#6B7280', marginBottom: 2 }}>TripMate AI</Text>
+                <Text style={{ backgroundColor: '#E5F3FF', borderRadius: 8, padding: 8 }}>{item.text}</Text>
+              </View>
             );
           }
           const sender = profileCache[item.senderId];

@@ -55,8 +55,104 @@ export default async function handler(req: any, res: any) {
       .reverse();
 
     let draftText = `[DRAFT:${tool}] placeholder`;
+    // Weather summary (WeatherAPI) computed first; if available, we short‑circuit and return it
+    let weatherSummary: string | null = null;
+    if (tool === 'weather') {
+      try {
+        const contextStr = messages.map((m: any) => m.text || '').join(' ');
+        const locMatch = /\b(?:weather\s+(?:in|at|for)\s+|(?:in|at|to)\s+)([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2})\b/i.exec(contextStr);
+        const city = (locMatch?.[1] || '').trim();
+
+        // Parse date range: supports YYYY-MM-DD, M/D/YYYY, and "November 2" forms
+        const isoDates = Array.from(contextStr.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)).map(m => m[0]);
+        const slashDates = Array.from(contextStr.matchAll(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/g)).map(m => {
+          const y = m[3].length === 2 ? `20${m[3]}` : m[3];
+          const mm = String(m[1]).padStart(2, '0');
+          const dd = String(m[2]).padStart(2, '0');
+          return `${y}-${mm}-${dd}`;
+        });
+        const monthNames = '(January|February|March|April|May|June|July|August|September|October|November|December)';
+        const monthDates = Array.from(contextStr.matchAll(new RegExp(`\b${monthNames}\\s+(\d{1,2})(?:,\\s*(\d{4}))?`, 'gi'))).map(m => {
+          const monthIndex = [
+            'january','february','march','april','may','june','july','august','september','october','november','december'
+          ].indexOf(m[1].toLowerCase());
+          const year = m[2] ? parseInt(m[2], 10) : (new Date()).getFullYear();
+          const mm = String(monthIndex + 1).padStart(2, '0');
+          const dd = String(parseInt(m[2] ? m[3] : m[2] || m[2], 10) || parseInt(m[2]||'0', 10)).padStart(2,'0');
+          // m indices are messy above; recompute from regex groups safely
+          const day = String(parseInt(m[2] ? m[2] : m[2] || '0', 10));
+          const dd2 = String(parseInt(m[2] ? m[2] : (m[2] as any) || '0', 10));
+          const dInt = parseInt(m[2] as any, 10);
+          const dayNum = isNaN(dInt) ? parseInt(m[2] as any, 10) : dInt;
+          const ddFinal = String(dayNum).padStart(2, '0');
+          return `${year}-${mm}-${ddFinal}`;
+        }).filter(Boolean);
+
+        // Consolidate and sort unique dates
+        let dates: string[] = Array.from(new Set([...isoDates, ...slashDates, ...monthDates]));
+        dates.sort();
+        if (dates.length === 1) dates = [dates[0], dates[0]]; // single date → same start/end
+
+        const wxKey = process.env.WEATHERAPI_KEY as string | undefined;
+        if (wxKey && city) {
+          const today = new Date();
+          const toISO = (d: Date) => d.toISOString().slice(0,10);
+          const start = dates[0] || toISO(today);
+          const end = dates[1] || start;
+          const dayDiff = (Date.parse(end) - Date.parse(start)) / (24*3600*1000);
+
+          const results: { date: string; lo: number; hi: number; cond: string }[] = [];
+          const within14 = (Date.parse(start) - Date.now())/(24*3600*1000) <= 14 && (Date.parse(end) - Date.now())/(24*3600*1000) <= 14;
+          if (within14) {
+            // Use forecast.json up to 14 days
+            const daysNeeded = Math.min(14, Math.max(1, Math.ceil((Date.parse(end) - Date.now())/(24*3600*1000)) + 1));
+            const url = `https://api.weatherapi.com/v1/forecast.json?key=${wxKey}&q=${encodeURIComponent(city)}&days=${daysNeeded}&aqi=no&alerts=no`;
+            const resp = await fetch(url);
+            if (resp.ok) {
+              const data: any = await resp.json();
+              const fdays: any[] = Array.isArray(data?.forecast?.forecastday) ? data.forecast.forecastday : [];
+              for (const d of fdays) {
+                const dateStr = d?.date as string;
+                if (dateStr >= start && dateStr <= end) {
+                  results.push({ date: dateStr, lo: Math.round(d?.day?.mintemp_f ?? 0), hi: Math.round(d?.day?.maxtemp_f ?? 0), cond: (d?.day?.condition?.text as string) || '—' });
+                }
+              }
+            }
+          } else {
+            // Use future.json per date (up to 365 days)
+            const dateList: string[] = [];
+            for (let t = Date.parse(start); t <= Date.parse(end); t += 24*3600*1000) {
+              dateList.push(new Date(t).toISOString().slice(0,10));
+            }
+            for (const dt of dateList) {
+              const url = `https://api.weatherapi.com/v1/future.json?key=${wxKey}&q=${encodeURIComponent(city)}&dt=${dt}`;
+              const resp = await fetch(url);
+              if (resp.ok) {
+                const data: any = await resp.json();
+                const day = data?.forecast?.forecastday?.[0]?.day;
+                if (day) {
+                  results.push({ date: dt, lo: Math.round(day?.mintemp_f ?? 0), hi: Math.round(day?.maxtemp_f ?? 0), cond: (day?.condition?.text as string) || '—' });
+                }
+              }
+            }
+          }
+          if (results.length > 0) {
+            const parts = results.map(r => `${r.date}: ${r.lo}°F–${r.hi}°F, ${r.cond}`);
+            weatherSummary = `Weather for ${city} (${start} → ${end})\n` + parts.join('\n');
+          }
+        }
+        if (!weatherSummary) {
+          weatherSummary = city
+            ? `Weather summary is unavailable right now for ${city}.`
+            : 'Weather summary unavailable: specify a city (e.g., “Weather in Denver”).';
+        }
+      } catch {}
+    }
+
     const openaiKey = process.env.OPENAI_API_KEY as string | undefined;
-    if (openaiKey) {
+    if (tool === 'weather' && weatherSummary) {
+      draftText = weatherSummary;
+    } else if (openaiKey) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { OpenAI } = require('openai');
@@ -79,49 +175,8 @@ export default async function handler(req: any, res: any) {
         } else if (tool === 'trip') {
           prompt = `Draft a short plain-text suggestion for next steps in trip planning (no markdown).\n\nChat (latest last):\n${context}`;
         } else if (tool === 'weather') {
-          // Try to extract a simple location from recent conversation
-          const locMatch = /\b(in|at|to)\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2})\b/.exec(context);
-          const city = (locMatch?.[2] || '').trim();
-          const owmKey = process.env.OWM_API_KEY as string | undefined;
-          let summary = '';
-          if (owmKey && city) {
-            try {
-              // 5-day / 3h forecast, imperial units
-              const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&appid=${owmKey}&units=imperial`;
-              const resp = await fetch(url);
-              if (resp.ok) {
-                const data: any = await resp.json();
-                const list: any[] = Array.isArray(data?.list) ? data.list : [];
-                // Aggregate by date
-                const byDay: Record<string, { hi: number; lo: number; conditions: Record<string, number> }> = {};
-                for (const it of list) {
-                  const ts = (it?.dt ?? 0) * 1000;
-                  const d = new Date(ts);
-                  const dayKey = d.toISOString().slice(0, 10);
-                  const temp: number = it?.main?.temp ?? 0;
-                  const cond: string = ((it?.weather?.[0]?.main as string) || 'Unknown');
-                  if (!byDay[dayKey]) byDay[dayKey] = { hi: -Infinity, lo: Infinity, conditions: {} };
-                  byDay[dayKey].hi = Math.max(byDay[dayKey].hi, temp);
-                  byDay[dayKey].lo = Math.min(byDay[dayKey].lo, temp);
-                  byDay[dayKey].conditions[cond] = (byDay[dayKey].conditions[cond] || 0) + 1;
-                }
-                const days = Object.keys(byDay).slice(0, 5);
-                const parts = days.map((dk) => {
-                  const d = byDay[dk];
-                  const topCond = Object.entries(d.conditions).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0] ?? '—';
-                  return `${dk}: ${Math.round(d.lo)}°F–${Math.round(d.hi)}°F, ${topCond}`;
-                });
-                summary = `Weather for ${city} (next ${parts.length} days)\n` + parts.join('\n');
-              }
-            } catch {}
-          }
-          if (!summary) {
-            summary = city
-              ? `Weather summary is unavailable right now for ${city}.`
-              : 'Weather summary unavailable: specify a city (e.g., “Weather in Denver”).';
-          }
-          // Hand the already summarized plain text back
-          prompt = `Return this text as-is (no formatting changes): ${summary}`;
+          // Fallback: if we couldn't compute a summary above and no API key, return guidance
+          prompt = `Return this text as-is (no formatting): Weather summary unavailable.`;
         } else {
           prompt = `Create a helpful plain-text draft for tool: ${tool}. Use the conversation as context.\n\nChat (latest last):\n${context}`;
         }

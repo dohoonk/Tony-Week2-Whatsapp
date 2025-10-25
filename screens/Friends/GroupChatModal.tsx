@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, FlatList, TouchableOpacity, TextInput, Button, Image, Alert } from 'react-native';
 import { listFriends } from '../../firebase/friendService';
+import { getUserProfile } from '../../firebase/userService';
 import { auth } from '../../firebase/config';
 import * as ImagePicker from 'expo-image-picker';
 import { createGroupChat } from '../../firebase/chatService';
@@ -16,10 +17,16 @@ export default function GroupChatModal({ visible, onClose, onCreated }: { visibl
 
   useEffect(() => {
     if (!visible) return;
-    listFriends(uid).then(setFriends);
-    setSelected({});
-    setGroupName('');
-    setPhotoUri(null);
+    (async () => {
+      const raw = await listFriends(uid);
+      const uidSet = Array.from(new Set(raw.map((f: any) => f.friendUid)));
+      const entries = await Promise.all(uidSet.map(async (id) => [id, await getUserProfile(id)] as const));
+      const map = Object.fromEntries(entries);
+      setFriends(raw.map((f: any) => ({ ...f, profile: map[f.friendUid] })));
+      setSelected({});
+      setGroupName('');
+      setPhotoUri(null);
+    })();
   }, [visible]);
 
   const pickPhoto = async () => {
@@ -87,13 +94,19 @@ export default function GroupChatModal({ visible, onClose, onCreated }: { visibl
           renderItem={({ item }) => (
             <TouchableOpacity
               onPress={() => setSelected((s) => ({ ...s, [item.friendUid]: !s[item.friendUid] }))}
-              style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}
+              style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, alignItems: 'center' }}
             >
-              <View>
-                <Text style={{ fontWeight: '600' }}>{item?.profile?.displayName ?? item.friendUid}</Text>
-                {item?.profile?.email ? (
-                  <Text style={{ color: '#666' }}>{item.profile.email}</Text>
-                ) : null}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Image
+                  source={item?.profile?.photoURL ? { uri: item.profile.photoURL } : undefined}
+                  style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#ddd' }}
+                />
+                <View>
+                  <Text style={{ fontWeight: '600' }}>{item?.profile?.displayName ?? item.friendUid}</Text>
+                  {item?.profile?.email ? (
+                    <Text style={{ color: '#666' }}>{item.profile.email}</Text>
+                  ) : null}
+                </View>
               </View>
               <Text>{selected[item.friendUid] ? '✓' : ''}</Text>
             </TouchableOpacity>

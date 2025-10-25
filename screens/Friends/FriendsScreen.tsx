@@ -217,8 +217,8 @@ export default function FriendsScreen() {
         <AppButton title="Start Group Chat" variant="primary" size="sm" onPress={() => setGroupVisible(true)} />
       </View>
       <AppText variant="title" style={{ fontSize: 18, marginBottom: 12 }}>Add friend by email</AppText>
-      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end', marginBottom: 16 }}>
-        <View style={{ flex: 0.85 }}>
+      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+        <View style={{ flex: 1 }}>
           <FormField
             label="Email"
             value={emailToAdd}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Button, Image, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, Image, TouchableOpacity, Alert } from 'react-native';
+import AppButton from '../../components/AppButton';
 import { auth } from '../../firebase/config';
 import { getUserProfile, upsertUserProfile } from '../../firebase/userService';
 import * as ImagePicker from 'expo-image-picker';
@@ -83,7 +84,7 @@ export default function ProfileScreen() {
         placeholder="Available"
         style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 16 }}
       />
-      <Button title={loading ? 'Saving...' : 'Save'} onPress={onSave} disabled={loading} />
+      <AppButton title={loading ? 'Saving...' : 'Save'} onPress={onSave} disabled={loading} loading={loading} variant="primary" />
     </View>
   );
 }

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Image } from 'react-native';
+import AppCard from '../../components/AppCard';
+import AppText from '../../components/AppText';
 import AppButton from '../../components/AppButton';
 import { auth } from '../../firebase/config';
 import { getUserProfile } from '../../firebase/userService';
@@ -210,7 +212,7 @@ export default function FriendsScreen() {
   return (
     <View style={{ flex: 1, padding: 16 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Text style={{ fontSize: 22, fontWeight: '600' }}>Friends</Text>
+        <AppText variant="title">Friends</AppText>
         <AppButton title="Start Group Chat" variant="primary" size="sm" onPress={() => setGroupVisible(true)} />
       </View>
       <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12 }}>Add friend by email</Text>
@@ -233,27 +235,29 @@ export default function FriendsScreen() {
         extraData={presenceMap}
         ListEmptyComponent={<Text style={{ color: '#666' }}>No incoming</Text>}
         renderItem={({ item }) => (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Image
-                source={item?.profile?.photoURL ? { uri: item.profile.photoURL } : undefined}
-                style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#ddd' }}
-              />
-              <View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ fontWeight: '600' }}>{item?.profile?.displayName ?? item.fromUid}</Text>
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.fromUid] ? '#34C759' : '#D1D5DB' }} />
+          <AppCard style={{ marginVertical: 6 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Image
+                  source={item?.profile?.photoURL ? { uri: item.profile.photoURL } : undefined}
+                  style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#ddd' }}
+                />
+                <View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <AppText>{item?.profile?.displayName ?? item.fromUid}</AppText>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.fromUid] ? '#34C759' : '#D1D5DB' }} />
+                  </View>
+                  {item?.profile?.email ? (
+                    <AppText variant="meta" style={{ color: '#666' }}>{item.profile.email}</AppText>
+                  ) : null}
                 </View>
-                {item?.profile?.email ? (
-                  <Text style={{ color: '#666' }}>{item.profile.email}</Text>
-                ) : null}
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <AppButton title="Accept" variant="primary" size="sm" onPress={async () => { await acceptFriendRequest(item.id, item.fromUid, uid!); refresh(); }} />
+                <AppButton title="Decline" variant="outline" size="sm" onPress={async () => { await declineFriendRequest(item.id); refresh(); }} />
               </View>
             </View>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <AppButton title="Accept" variant="primary" size="sm" onPress={async () => { await acceptFriendRequest(item.id, item.fromUid, uid!); refresh(); }} />
-              <AppButton title="Decline" variant="outline" size="sm" onPress={async () => { await declineFriendRequest(item.id); refresh(); }} />
-            </View>
-          </View>
+          </AppCard>
         )}
       />
 
@@ -264,24 +268,26 @@ export default function FriendsScreen() {
         extraData={presenceMap}
         ListEmptyComponent={<Text style={{ color: '#666' }}>No outgoing</Text>}
         renderItem={({ item }) => (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Image
-                source={item?.profile?.photoURL ? { uri: item.profile.photoURL } : undefined}
-                style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#ddd' }}
-              />
-              <View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ fontWeight: '600' }}>{item?.profile?.displayName ?? item.toUid}</Text>
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.toUid] ? '#34C759' : '#D1D5DB' }} />
+          <AppCard style={{ marginVertical: 6 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Image
+                  source={item?.profile?.photoURL ? { uri: item.profile.photoURL } : undefined}
+                  style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#ddd' }}
+                />
+                <View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <AppText>{item?.profile?.displayName ?? item.toUid}</AppText>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.toUid] ? '#34C759' : '#D1D5DB' }} />
+                  </View>
+                  {item?.profile?.email ? (
+                    <AppText variant="meta" style={{ color: '#666' }}>{item.profile.email}</AppText>
+                  ) : null}
                 </View>
-                {item?.profile?.email ? (
-                  <Text style={{ color: '#666' }}>{item.profile.email}</Text>
-                ) : null}
               </View>
+              <AppButton title="Cancel" variant="outline" size="sm" onPress={async () => { await cancelOutgoingRequest(item.id); refresh(); }} />
             </View>
-            <AppButton title="Cancel" variant="outline" size="sm" onPress={async () => { await cancelOutgoingRequest(item.id); refresh(); }} />
-          </View>
+          </AppCard>
         )}
       />
 
@@ -296,33 +302,36 @@ export default function FriendsScreen() {
             onPress={async () => {
               if (!uid) return;
               const chatId = await openDirectChat(uid, item.friendUid);
-              // Navigate to nested ChatRoom inside the Chats tab stack
               // @ts-ignore
               navigation.navigate('Chats', { screen: 'ChatRoom', params: { chatId } });
             }}
-            style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, alignItems: 'center' }}
+            activeOpacity={0.85}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Image
-                source={item?.profile?.photoURL ? { uri: item.profile.photoURL } : undefined}
-                style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#ddd' }}
-              />
-              <View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ fontWeight: '600' }}>{item?.profile?.displayName ?? item.friendUid}</Text>
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.friendUid] ? '#34C759' : '#D1D5DB' }} />
+            <AppCard style={{ marginVertical: 6 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Image
+                    source={item?.profile?.photoURL ? { uri: item.profile.photoURL } : undefined}
+                    style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#ddd' }}
+                  />
+                  <View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <AppText>{item?.profile?.displayName ?? item.friendUid}</AppText>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.friendUid] ? '#34C759' : '#D1D5DB' }} />
+                    </View>
+                    {item?.profile?.email ? (
+                      <AppText variant="meta" style={{ color: '#666' }}>{item.profile.email}</AppText>
+                    ) : null}
+                  </View>
                 </View>
-                {item?.profile?.email ? (
-                  <Text style={{ color: '#666' }}>{item.profile.email}</Text>
-                ) : null}
+                <AppButton title="Start Chat" variant="primary" size="sm" onPress={async () => {
+                  if (!uid) return;
+                  const chatId = await openDirectChat(uid, item.friendUid);
+                  // @ts-ignore
+                  navigation.navigate('Chats', { screen: 'ChatRoom', params: { chatId } });
+                }} />
               </View>
-            </View>
-            <AppButton title="Start Chat" variant="primary" size="sm" onPress={async () => {
-              if (!uid) return;
-              const chatId = await openDirectChat(uid, item.friendUid);
-              // @ts-ignore
-              navigation.navigate('Chats', { screen: 'ChatRoom', params: { chatId } });
-            }} />
+            </AppCard>
           </TouchableOpacity>
         )}
       />

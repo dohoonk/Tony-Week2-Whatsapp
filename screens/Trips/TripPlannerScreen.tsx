@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
+import AppButton from '../../components/AppButton';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { TripsStackParamList } from '../../navigation/TripsStack';
 import { db } from '../../firebase/config';
@@ -202,12 +203,12 @@ export default function TripPlannerScreen() {
       ) : null}
       {trip?.notes ? <Text style={{ marginTop: 8 }}>{trip.notes}</Text> : null}
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 16 }}>
-        <View style={{ flexDirection: 'row', gap: 16 }}>
-          <TouchableOpacity onPress={generateItinerary}><Text style={{ color: '#2563EB' }}>Generate</Text></TouchableOpacity>
-          <TouchableOpacity onPress={loadWeather}><Text style={{ color: '#2563EB' }}>Refresh weather</Text></TouchableOpacity>
-          <TouchableOpacity onPress={addDay}><Text style={{ color: '#2563EB' }}>Add day</Text></TouchableOpacity>
-          <TouchableOpacity onPress={saveItinerary}><Text style={{ color: '#2563EB' }}>Save</Text></TouchableOpacity>
-          <TouchableOpacity onPress={postToChat}><Text style={{ color: '#2563EB' }}>Post to chat</Text></TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}>
+          <AppButton title="Generate" onPress={generateItinerary} variant="primary" size="sm" />
+          <AppButton title="Refresh weather" onPress={loadWeather} variant="outline" size="sm" />
+          <AppButton title="Add day" onPress={addDay} variant="secondary" size="sm" />
+          <AppButton title="Save" onPress={saveItinerary} variant="primary" size="sm" />
+          <AppButton title="Post to chat" onPress={postToChat} variant="outline" size="sm" />
         </View>
       </View>
       <View style={{ marginTop: 8 }}>

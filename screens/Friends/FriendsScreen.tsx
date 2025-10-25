@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Image } from 'react-native';
+import AppButton from '../../components/AppButton';
 import { auth } from '../../firebase/config';
 import { getUserProfile } from '../../firebase/userService';
 import { listIncomingRequests, listOutgoingRequests, listFriends, sendFriendRequest, acceptFriendRequest, declineFriendRequest, cancelOutgoingRequest } from '../../firebase/friendService';
@@ -238,8 +239,8 @@ export default function FriendsScreen() {
               </View>
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Button title="Accept" onPress={async () => { await acceptFriendRequest(item.id, item.fromUid, uid!); refresh(); }} />
-              <Button title="Decline" onPress={async () => { await declineFriendRequest(item.id); refresh(); }} />
+              <AppButton title="Accept" variant="primary" size="sm" onPress={async () => { await acceptFriendRequest(item.id, item.fromUid, uid!); refresh(); }} />
+              <AppButton title="Decline" variant="outline" size="sm" onPress={async () => { await declineFriendRequest(item.id); refresh(); }} />
             </View>
           </View>
         )}
@@ -268,7 +269,7 @@ export default function FriendsScreen() {
                 ) : null}
               </View>
             </View>
-            <Button title="Cancel" onPress={async () => { await cancelOutgoingRequest(item.id); refresh(); }} />
+            <AppButton title="Cancel" variant="outline" size="sm" onPress={async () => { await cancelOutgoingRequest(item.id); refresh(); }} />
           </View>
         )}
       />
@@ -285,7 +286,8 @@ export default function FriendsScreen() {
               if (!uid) return;
               const chatId = await openDirectChat(uid, item.friendUid);
               // Navigate to nested ChatRoom inside the Chats tab stack
-              navigation.navigate('Chats' as never, { screen: 'ChatRoom', params: { chatId } } as never);
+              // @ts-ignore
+              navigation.navigate('Chats', { screen: 'ChatRoom', params: { chatId } });
             }}
             style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, alignItems: 'center' }}
           >
@@ -304,14 +306,22 @@ export default function FriendsScreen() {
                 ) : null}
               </View>
             </View>
-            <Text style={{ color: '#0066cc' }}>Start Chat</Text>
+            <AppButton title="Start Chat" variant="primary" size="sm" onPress={async () => {
+              if (!uid) return;
+              const chatId = await openDirectChat(uid, item.friendUid);
+              // @ts-ignore
+              navigation.navigate('Chats', { screen: 'ChatRoom', params: { chatId } });
+            }} />
           </TouchableOpacity>
         )}
       />
       <GroupChatModal
         visible={groupVisible}
         onClose={() => setGroupVisible(false)}
-        onCreated={(chatId) => navigation.navigate('Chats' as never, { screen: 'ChatRoom', params: { chatId } } as never)}
+        onCreated={(chatId) => {
+          // @ts-ignore
+          navigation.navigate('Chats', { screen: 'ChatRoom', params: { chatId } });
+        }}
       />
     </View>
   );

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, FlatList, TouchableOpacity, TextInput, Button, Image, Alert } from 'react-native';
+import { Modal, View, Text, FlatList, TouchableOpacity, TextInput, Image, Alert } from 'react-native';
+import AppButton from '../../components/AppButton';
 import { listFriends } from '../../firebase/friendService';
 import { getUserProfile } from '../../firebase/userService';
 import { auth } from '../../firebase/config';
@@ -127,8 +128,8 @@ export default function GroupChatModal({ visible, onClose, onCreated }: { visibl
           )}
         />
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
-          <Button title="Cancel" onPress={onClose} />
-          <Button title={loading ? 'Creating…' : 'Create'} onPress={onCreate} disabled={loading} />
+          <AppButton title="Cancel" variant="outline" onPress={onClose} />
+          <AppButton title={loading ? 'Creating…' : 'Create'} variant="primary" onPress={onCreate} disabled={loading} loading={loading} />
         </View>
       </View>
     </Modal>

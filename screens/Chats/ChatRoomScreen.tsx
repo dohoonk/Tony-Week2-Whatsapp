@@ -138,7 +138,9 @@ export default function ChatRoomScreen() {
         const uid = auth.currentUser?.uid;
         if (uid && initialLastReadAtRef.current === null) {
           const rs = data?.readStatus || {};
-          initialLastReadAtRef.current = rs[uid] ?? null;
+          const entry: any = rs[uid];
+          const at = typeof entry === 'object' && typeof entry?.at === 'number' ? entry.at : (typeof entry === 'number' ? entry : null);
+          initialLastReadAtRef.current = at;
           persistDividerRef.current = true;
           if (!markedOnOpenRef.current) {
             try { await updateReadStatus(chatId, uid); } catch {}
@@ -263,11 +265,14 @@ export default function ChatRoomScreen() {
   // Compute the index of the first unread message (in raw messages),
   // anchored to the entry-time read boundary so the divider persists until unmount
   const firstUnreadIndex = React.useMemo(() => {
-    const boundary = (initialLastReadAtRef.current ?? lastReadAt) as number | null;
+    const myUid = auth.currentUser?.uid;
+    const boundaryEntry: any = initialReadEntryRef.current || null;
+    const boundaryAt = boundaryEntry && typeof boundaryEntry?.at === 'number' ? boundaryEntry.at : (initialLastReadAtRef.current as number | null);
+    const boundary = boundaryAt ?? lastReadAt;
     if (!boundary || messages.length === 0) return null;
-    const idx = messages.findIndex((m) => (m?.timestamp ?? 0) > boundary);
+    const idx = messages.findIndex((m) => (m?.timestamp ?? 0) > boundary && m?.senderId !== myUid);
     return idx >= 0 ? idx : null;
-  }, [messages]);
+  }, [messages, lastReadAt]);
 
   // Jump to the unread divider on first load
   useEffect(() => {
@@ -312,7 +317,8 @@ export default function ChatRoomScreen() {
     const unsub = onSnapshot(chatRef, (snap) => {
       const data: any = snap.data() || {};
       const rs = data.readStatus || {};
-      const current = rs[uid] ?? null;
+      const entry: any = rs[uid];
+      const current = typeof entry === 'object' && typeof entry?.at === 'number' ? entry.at : (typeof entry === 'number' ? entry : null);
       setLastReadAt(current);
       if (initialLastReadAtRef.current === null) {
         initialLastReadAtRef.current = current;

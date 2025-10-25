@@ -115,6 +115,7 @@ export default function ChatRoomScreen() {
 
   useEffect(() => {
     // Set title from chat doc (groupName) if available
+    try { (global as any).__currentChatId = chatId; } catch {}
     const chatRef = doc(db, 'chats', chatId);
     const unsubTitle = onSnapshot(chatRef, (snap) => {
       const data: any = snap.data() || {};

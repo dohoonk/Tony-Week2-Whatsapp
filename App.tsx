@@ -22,6 +22,7 @@ export default function App() {
   const [user, setUser] = React.useState<any>(null);
   const [needsOnboarding, setNeedsOnboarding] = React.useState(false);
   const navRef = React.useRef<any>(null);
+  const currentChatIdRef = React.useRef<string | null>(null);
   const debugPresence = (message: string) => {
     if (__DEV__) {
       try { console.log(message); } catch {}
@@ -56,6 +57,18 @@ export default function App() {
       } catch {}
     });
     return () => { sub.remove(); onRecv.remove(); };
+  }, []);
+
+  // Track currently focused chat id from a global set by ChatRoomScreen
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const cid = (global as any).__currentChatId as string | undefined;
+        currentChatIdRef.current = cid ?? null;
+      } catch {}
+    }, 500);
+    return () => clearInterval(id);
   }, []);
 
   // Log that app mounted (dev only)
@@ -120,12 +133,12 @@ export default function App() {
           }
         };
         await setOnline();
-        let presenceInterval: any = setInterval(setOnline, 10000);
+        let presenceInterval: any = setInterval(setOnline, 5000);
         const appStateSub = AppState.addEventListener('change', async (state) => {
           try { if (__DEV__) console.log('AppState change:', state); } catch {}
           if (state === 'active') {
             setOnline();
-            if (!presenceInterval) presenceInterval = setInterval(setOnline, 10000);
+            if (!presenceInterval) presenceInterval = setInterval(setOnline, 5000);
             // Auto-expire overdue reminders on foreground
             try {
               const rq = query(collection(db, 'reminders'), where('members', 'array-contains', u.uid));
@@ -167,7 +180,7 @@ export default function App() {
               const chatSnap = await getDoc(doc(db, 'chats', chatId));
               const cd: any = chatSnap.data() || {};
               const lm = cd?.lastMessageAt;
-              const base = typeof lm === 'number' ? lm : (lm?.toMillis?.() ?? Date.now());
+              const base = typeof lm === 'number' ? lm : (lm?.toMillis?.() ?? 0);
               if (!lastNotified.has(chatId)) lastNotified.set(chatId, base);
               try { if (__DEV__) console.log('Notif attach for chat', chatId, 'baseline', base); } catch {}
             } catch {}
@@ -204,9 +217,12 @@ export default function App() {
                 const sp = senderSnap.data() as any;
                 title = sp?.displayName || 'New message';
               }
-              const body = m.text ? String(m.text) : 'Sent a photo';
-              const { showLocalNotification } = await import('./lib/notifications');
-              showLocalNotification(title, body, { chatId });
+              // Suppress if I'm currently viewing this chat
+              if (currentChatIdRef.current !== chatId) {
+                const body = m.text ? String(m.text) : 'Sent a photo';
+                const { showLocalNotification } = await import('./lib/notifications');
+                showLocalNotification(title, body, { chatId });
+              }
             });
             perChatSubs.set(chatId, unsubLatest);
           }
@@ -270,6 +286,7 @@ export default function App() {
           lastNotified.clear();
           appStateSub.remove();
           if (presenceInterval) clearInterval(presenceInterval);
+          // Best-effort offline write when tearing down (e.g., app close)
           setOffline();
         };
       } else {

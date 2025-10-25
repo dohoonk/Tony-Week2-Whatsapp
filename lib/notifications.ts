@@ -3,11 +3,12 @@ import Constants from 'expo-constants';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    // Legacy-safe config for Expo Go / older SDKs
-    shouldShowAlert: true,
+    // Prefer banner/list flags (Expo SDK >= 51); keep sound on
+    shouldShowBanner: true as any,
+    shouldShowList: false as any,
     shouldPlaySound: true,
     shouldSetBadge: false,
-  }),
+  }) as any,
 });
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {

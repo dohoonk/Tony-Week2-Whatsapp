@@ -6,13 +6,16 @@ type Props = {
   label: string;
   helpText?: string;
   errorText?: string;
+  hideLabel?: boolean;
 } & TextInputProps;
 
-export default function FormField({ label, helpText, errorText, style, ...inputProps }: Props) {
+export default function FormField({ label, helpText, errorText, hideLabel, style, ...inputProps }: Props) {
   const hasError = !!errorText;
   return (
     <View style={{ marginBottom: spacing[3] }}>
-      <Text style={{ color: colors.textSubtle, ...(typography.meta as any), marginBottom: 6 }}>{label}</Text>
+      {!hideLabel ? (
+        <Text style={{ color: colors.textSubtle, ...(typography.meta as any), marginBottom: 6 }}>{label}</Text>
+      ) : null}
       <TextInput
         {...inputProps}
         style={[

@@ -218,7 +218,7 @@ export default function FriendsScreen() {
       </View>
       <AppText variant="title" style={{ fontSize: 18, marginBottom: 12 }}>Add friend by email</AppText>
       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end', marginBottom: 16 }}>
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 0.85 }}>
           <FormField
             label="Email"
             value={emailToAdd}
@@ -226,6 +226,7 @@ export default function FriendsScreen() {
             placeholder="friend@example.com"
             autoCapitalize="none"
             keyboardType="email-address"
+            hideLabel
           />
         </View>
         <AppButton title="Send" onPress={onSendRequest} disabled={loading} loading={loading} variant="primary" size="sm" />

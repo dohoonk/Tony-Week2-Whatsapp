@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
+import AppCard from '../../components/AppCard';
+import AppText from '../../components/AppText';
 import AppButton from '../../components/AppButton';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { TripsStackParamList } from '../../navigation/TripsStack';
@@ -249,8 +251,8 @@ export default function TripPlannerScreen() {
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 20, fontWeight: '600' }}>{trip?.title || 'Trip Planner'}</Text>
-      {dateRange ? <Text style={{ color: '#6B7280', marginTop: 4 }}>{dateRange}</Text> : null}
+      <AppText variant="title">{trip?.title || 'Trip Planner'}</AppText>
+      {dateRange ? <AppText variant="meta" style={{ color: '#6B7280', marginTop: 4 }}>{dateRange}</AppText> : null}
       {Array.isArray(trip?.members) && trip.members.length > 0 ? (
         <Text style={{ color: '#6B7280', marginTop: 4 }}>Members: {memberNames}</Text>
       ) : null}
@@ -265,7 +267,7 @@ export default function TripPlannerScreen() {
         </View>
       </View>
       <View style={{ marginTop: 8 }}>
-        <Text style={{ fontSize: 16, fontWeight: '600' }}>Itinerary</Text>
+        <AppText variant="title" style={{ fontSize: 16 }}>Itinerary</AppText>
       </View>
       {weatherWarn ? <Text style={{ color: '#EF4444', marginTop: 4 }}>{weatherWarn}</Text> : null}
 
@@ -276,9 +278,9 @@ export default function TripPlannerScreen() {
           data={itinerary}
           keyExtractor={(_, i) => String(i)}
           renderItem={({ item, index }) => (
-            <View style={{ padding: 12, borderRadius: 10, backgroundColor: '#F3F4F6', marginTop: 8 }}>
+            <AppCard style={{ marginTop: 8 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontWeight: '600' }}>{item?.date || `Day ${index + 1}`}</Text>
+                <AppText>{item?.date || `Day ${index + 1}`}</AppText>
                 <TouchableOpacity onPress={() => removeDay(index)}><Text style={{ color: '#EF4444' }}>Remove day</Text></TouchableOpacity>
               </View>
               {weather[item?.date] ? (
@@ -286,20 +288,20 @@ export default function TripPlannerScreen() {
                   {weather[item.date].icon ? (
                     <Image source={{ uri: weather[item.date].icon }} style={{ width: 20, height: 20 }} />
                   ) : null}
-                  <Text style={{ color: '#6B7280' }}>
+                  <AppText variant="meta" style={{ color: '#6B7280' }}>
                     {weather[item.date].city ? `${weather[item.date].city}: ` : ''}
                     {weather[item.date].lo}°F–{weather[item.date].hi}°F, {weather[item.date].cond}
-                  </Text>
+                  </AppText>
                 </View>
               ) : null}
               {(item?.items || []).map((it, idx) => (
                 <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-                  <Text style={{ color: '#374151', flexShrink: 1 }}>• {it}</Text>
+                  <AppText style={{ color: '#374151', flexShrink: 1 }}>• {it}</AppText>
                   <TouchableOpacity onPress={() => removeItem(index, idx)}><Text style={{ color: '#EF4444' }}>Remove</Text></TouchableOpacity>
                 </View>
               ))}
               <AddItemRow onAdd={(txt) => addItem(index, txt)} />
-            </View>
+            </AppCard>
           )}
         />
       )}

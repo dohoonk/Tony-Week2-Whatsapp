@@ -16,6 +16,7 @@ import { doc, setDoc, arrayUnion, collection, query, where, onSnapshot, orderBy,
 import { db } from './firebase/config';
 import * as Notifications from 'expo-notifications';
 import { NavigationContainerRefWithCurrent } from '@react-navigation/native';
+import Constants from 'expo-constants';
 
 export default function App() {
   const [ready, setReady] = React.useState(false);
@@ -23,6 +24,7 @@ export default function App() {
   const [needsOnboarding, setNeedsOnboarding] = React.useState(false);
   const navRef = React.useRef<any>(null);
   const currentChatIdRef = React.useRef<string | null>(null);
+  const isExpoGo = Constants?.appOwnership === 'expo';
   const debugPresence = (message: string) => {
     if (__DEV__) {
       try { console.log(message); } catch {}
@@ -33,6 +35,7 @@ export default function App() {
   };
 
   React.useEffect(() => {
+    if (!isExpoGo) return;
     // Handle tapping on local notification to navigate to chat
     const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
       const chatId = resp.notification.request.content.data?.chatId as string | undefined;
@@ -196,12 +199,12 @@ export default function App() {
               const m: any = doc0.data();
               if (!m?.timestamp) return;
               // Initialize baseline to 'now' so the next incoming message triggers immediately
-              if (!lastNotified.has(chatId)) lastNotified.set(chatId, Date.now());
+              if (!lastNotified.has(chatId)) lastNotified.set(chatId, 0);
               const prev = lastNotified.get(chatId) ?? 0;
               const msgTs = typeof m.timestamp === 'number' ? m.timestamp : (m.timestamp?.toMillis?.() ?? 0);
               const sameId = lastNotifiedId.get(chatId) === msgId;
               const willNotify = !sameId && (msgTs > prev) && m.senderId !== u.uid;
-              try { if (__DEV__) console.log('Notif check', { chatId, msgId, msgTs, prev, senderId: m.senderId, willNotify }); } catch {}
+              try { if (__DEV__) console.log('Notif check', { chatId, msgId, msgTs, prev, senderId: m.senderId, willNotify, currentChatId: currentChatIdRef.current }); } catch {}
               if (!willNotify) return;
               lastNotified.set(chatId, msgTs);
               lastNotifiedId.set(chatId, msgId);
@@ -242,6 +245,7 @@ export default function App() {
         const remindersRef = collection(db, 'reminders');
         const rq = query(remindersRef, where('members', 'array-contains', u.uid));
         const unsubReminders = onSnapshot(rq, async (snap) => {
+          if (!isExpoGo) return;
           const nowTs = Date.now();
           const seen = new Set<string>();
           for (const d of snap.docs) {

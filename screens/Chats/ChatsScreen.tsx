@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import AppText from '../../components/AppText';
+import AppCard from '../../components/AppCard';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
@@ -83,22 +84,23 @@ export default function ChatsScreen() {
             });
           }
           return (
-            <TouchableOpacity
-              style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', alignItems: 'center', gap: 12 }}
-              onPress={() => navigation.navigate('ChatRoom', { chatId: item.id })}
-            >
-              {item.type === 'group' ? (
-                <GroupAvatar uris={groupMemberPhotos || []} size={40} />
-              ) : avatar ? (
-                <Image source={{ uri: avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
-              ) : (
-                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#eee' }} />
-              )}
-              <View style={{ flex: 1 }}>
-                <AppText>{title}</AppText>
-                {item.lastMessage ? <AppText variant="meta" style={{ color: '#666' }} numberOfLines={1}>{item.lastMessage}</AppText> : null}
-              </View>
-              <AppText variant="meta" style={{ color: '#666', marginLeft: 8 }}>{formatLastMessageTime(item.lastMessageAt)}</AppText>
+            <TouchableOpacity onPress={() => navigation.navigate('ChatRoom', { chatId: item.id })} activeOpacity={0.85}>
+              <AppCard style={{ marginVertical: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  {item.type === 'group' ? (
+                    <GroupAvatar uris={groupMemberPhotos || []} size={40} />
+                  ) : avatar ? (
+                    <Image source={{ uri: avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                  ) : (
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#eee' }} />
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <AppText>{title}</AppText>
+                    {item.lastMessage ? <AppText variant="meta" style={{ color: '#666' }} numberOfLines={1}>{item.lastMessage}</AppText> : null}
+                  </View>
+                  <AppText variant="meta" style={{ color: '#666', marginLeft: 8 }}>{formatLastMessageTime(item.lastMessageAt)}</AppText>
+                </View>
+              </AppCard>
             </TouchableOpacity>
           );
         }}

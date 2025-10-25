@@ -12,6 +12,14 @@ Key needs:
 
 A cross-platform chat app built with Expo (React Native) and Firebase. Supports email auth, friends with requests, direct/group chats, optimistic messaging with offline outbox, realtime presence, unread divider, and foreground notifications.
 
+## Monorepo Layout
+```
+root/
+  app/            # Expo client (this README)
+  app/api/        # Vercel Serverless (Node runtime)
+  app/shared/     # Shared types
+```
+
 ## 1) Prerequisites
 - macOS with Xcode (for iOS Simulator)
 - Node 20.x and npm 10.x
@@ -41,13 +49,30 @@ EXPO_PUBLIC_FIREBASE_APP_ID=...
 ```
 The app loads these via `app.config.ts`.
 
+### Serverless (Vercel) env vars
+Set these in Vercel → Project → Settings → Environment Variables:
+```
+FIREBASE_PROJECT_ID=...
+FIREBASE_CLIENT_EMAIL=...
+FIREBASE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n
+OPENAI_API_KEY=...
+WEATHERAPI_KEY=...
+```
+Client also needs the API base URL:
+```
+EXPO_PUBLIC_AI_API_URL=https://<your-vercel-domain>
+```
+
 ### Firestore structure
 - `users/{uid}`: displayName, photoURL, emailLower, statusMessage, online/status/lastSeen (written by app), pushTokens[]
 - `friendRequests/{id}`: fromUid, toUid, status, createdAt
 - `friends/{uid}/list/{friendUid}`: friendUid, addedAt
-- `chats/{chatId}`: type, members[], groupName/photo, lastMessage/lastMessageAt, readStatus{uid:lastReadAt}
+- `chats/{chatId}`: type, members[], groupName/photo, lastMessage/lastMessageAt, readStatus{uid:{id,at}}, tripId?, pollId?, reminderId?
 - `chats/{chatId}/messages/{messageId}`: senderId, text/imageUrl, timestamp
 - `presence/{uid}`: online, state, lastChanged (written by app)
+- `polls/{pollId}`: question, options[], votes{uid:index}, status, resultPosted
+- `reminders/{reminderId}`: chatId, title, dueAt, status
+- `trips/{chatId}`: title, destination, startDate, endDate, notes, members[], version, itinerary[], archived
 
 ## 4) Run the app
 Prefer Expo Go for quick start; Dev Client for richer native features (notifications etc.).
@@ -82,7 +107,20 @@ npx expo start --dev-client
   - Unread divider: Inserts a "New messages" banner at the first unread message on entry and scrolls near it.
   - Read state: Per-user `readStatus` (derived unread count next to own messages).
 - Notifications (foreground): Global listener per chat; shows a banner for new incoming messages while app is foregrounded.
-  - Expo Go has limitations; use a Dev Client for richer behavior when needed.
+  - For the demo we gate notifications to Expo Go; Dev Client recommended for full support.
+
+### TripMate AI (v2)
+- Long‑press a message or tap the composer `+` to open AI tools: summarize, create poll, add reminder, plan trip, weather.
+- Type `@TM <question>` in the composer to ask TripMate directly (e.g., `@TM what's the weather in Seattle next week?`).
+  - The server supports `tool="auto"` with LLM intent extraction (strict JSON). We validate and then call deterministic tools/APIs.
+- RAG window: last 200 text messages (images/AI/system excluded).
+- Drafts are private until you tap Share (no writes on Discard).
+- Weather uses WeatherAPI (imperial units) and now shows the resolved city name alongside daily temps and icons.
+
+### Trips, Polls, Reminders
+- Trips: single `trips/{chatId}` doc with versioning; itinerary editing and posting to chat.
+- Polls: one vote per user, revotes allowed; auto-close and single summary message.
+- Reminders: scheduled → notified → completed/expired, with foreground notifications to members.
 
 ## 6) Multi-device testing
 - iOS: open a second simulator
@@ -109,7 +147,11 @@ npx expo start -c
   - Ensure each user opened the app (Friends tab triggers a presence write).
   - Confirm `presence/{uid}` and `users/{uid}` fields update.
 - Notifications not appearing in Expo Go:
-  - Known limitation; use Dev Client for full support.
+  - Known limitation; use Dev Client for full support. In this repo we also show an in‑app banner in foreground.
+
+### AI Debugging
+- Weather path logs (server): intent JSON from LLM, parsed city/date range, WeatherAPI search/forecast URLs (redacted key), and result count.
+- Set `EXPO_PUBLIC_AI_API_URL` correctly; verify Firebase Admin creds on Vercel.
 
 ## 8) Known gaps / TODOs
 - Google OAuth

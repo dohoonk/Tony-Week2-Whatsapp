@@ -165,20 +165,27 @@ export default function FriendsScreen() {
 
   const findUserByEmail = async (email: string) => {
     const ref = collection(db, 'users');
-    const normalized = email.trim().toLowerCase();
-    // Try emailLower first
-    let q1 = query(ref, where('emailLower', '==', normalized));
-    let snap = await getDocs(q1);
+    const raw = email.trim();
+    const normalized = raw.toLowerCase();
+    // 1) Primary: case-insensitive via emailLower
+    let snap = await getDocs(query(ref, where('emailLower', '==', normalized)));
     if (!snap.empty) {
       const docSnap = snap.docs[0];
       return { uid: docSnap.id, ...docSnap.data() } as any;
     }
-    // Fallback: some profiles may only have 'email'
-    let q2 = query(ref, where('email', '==', normalized));
-    snap = await getDocs(q2);
+    // 2) Exact match on email as typed (some older profiles only stored 'email')
+    snap = await getDocs(query(ref, where('email', '==', raw)));
     if (!snap.empty) {
       const docSnap = snap.docs[0];
       return { uid: docSnap.id, ...docSnap.data() } as any;
+    }
+    // 3) Fallback: match lowercased against 'email' if the stored value is already lowercased
+    if (raw !== normalized) {
+      snap = await getDocs(query(ref, where('email', '==', normalized)));
+      if (!snap.empty) {
+        const docSnap = snap.docs[0];
+        return { uid: docSnap.id, ...docSnap.data() } as any;
+      }
     }
     return null;
   };

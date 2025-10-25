@@ -13,7 +13,7 @@ export default function TripPlannerScreen() {
   const [trip, setTrip] = useState<any>(null);
   const [itinerary, setItinerary] = useState<Array<{ date: string; items: string[] }>>([]);
   const [userCache, setUserCache] = useState<Record<string, any>>({});
-  const [weather, setWeather] = useState<Record<string, { lo: number; hi: number; cond: string; icon?: string }>>({});
+  const [weather, setWeather] = useState<Record<string, { lo: number; hi: number; cond: string; icon?: string; city?: string }>>({});
   const [weatherCity, setWeatherCity] = useState<string>('');
   const [weatherWarn, setWeatherWarn] = useState<string>('');
 
@@ -140,11 +140,12 @@ export default function TripPlannerScreen() {
         }
       });
 
-      const map: Record<string, { lo: number; hi: number; cond: string; icon?: string }> = {};
+      const map: Record<string, { lo: number; hi: number; cond: string; icon?: string; city?: string }> = {};
       for (const seg of segments) {
         if (!seg.city) continue;
         const res = await fetchTripWeather(chatId, seg.city, seg.start, seg.end);
-        (res.days || []).forEach((d: any) => { map[d.date] = { lo: d.lo, hi: d.hi, cond: d.cond, icon: d.icon }; });
+        const resolvedCity = String((res as any)?.city || seg.city || '');
+        (res.days || []).forEach((d: any) => { map[d.date] = { lo: d.lo, hi: d.hi, cond: d.cond, icon: d.icon, city: resolvedCity }; });
       }
       setWeather(map);
     } catch (e: any) {
@@ -285,7 +286,10 @@ export default function TripPlannerScreen() {
                   {weather[item.date].icon ? (
                     <Image source={{ uri: weather[item.date].icon }} style={{ width: 20, height: 20 }} />
                   ) : null}
-                  <Text style={{ color: '#6B7280' }}>Weather: {weather[item.date].lo}°F–{weather[item.date].hi}°F, {weather[item.date].cond}</Text>
+                  <Text style={{ color: '#6B7280' }}>
+                    {weather[item.date].city ? `${weather[item.date].city}: ` : ''}
+                    {weather[item.date].lo}°F–{weather[item.date].hi}°F, {weather[item.date].cond}
+                  </Text>
                 </View>
               ) : null}
               {(item?.items || []).map((it, idx) => (

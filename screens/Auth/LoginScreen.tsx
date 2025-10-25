@@ -68,7 +68,10 @@ export default function LoginScreen() {
 
   return (
     <View style={{ flex: 1, padding: 16, justifyContent: 'center' }}>
-      <Text style={{ fontSize: 24, fontWeight: '600', marginBottom: 16 }}>Login</Text>
+      <View style={{ alignItems: 'center', marginBottom: 24 }}>
+        <Text style={{ fontSize: 32, fontWeight: '800' }}>TripMate</Text>
+        <Text style={{ color: '#6B7280', marginTop: 4 }}>Planning made easy with AI</Text>
+      </View>
       <TextInput
         value={email}
         onChangeText={setEmail}

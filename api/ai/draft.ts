@@ -37,7 +37,7 @@ export default async function handler(req: any, res: any) {
 
     const decoded = await verifyIdToken(token);
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const { chatId, tool } = body as any;
+    const { chatId, tool, prompt } = body as any;
     if (!chatId || !tool) { res.status(400).json({ error: 'chatId and tool are required' }); return; }
 
     const db = getAdminDb();
@@ -55,10 +55,62 @@ export default async function handler(req: any, res: any) {
       .reverse();
 
     let draftText = `[DRAFT:${tool}] placeholder`;
+    let resolvedTool: string = tool;
     let itineraryOut: Array<{ date: string; items: string[] }> | null = null;
     // Weather summary (WeatherAPI) computed first; if available, we short‑circuit and return it
     let weatherSummary: string | null = null;
-    if (tool === 'weather') {
+    if (tool === 'auto') {
+      try {
+        const openaiKey = process.env.OPENAI_API_KEY as string | undefined;
+        if (openaiKey) {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const { OpenAI } = require('openai');
+          const client = new OpenAI({ apiKey: openaiKey });
+          const context = messages.map((m: any) => `- ${m.senderId === 'ai' ? 'AI' : m.senderId}: ${m.text || ''}`).join('\n');
+          const basePrompt = `Extract user intent and structured fields from the following prompt and chat context. Return ONLY compact JSON (no code fences, no commentary) matching this schema:
+{
+  "intent": "weather|summarize|poll|reminder|trip|general",
+  "city": "optional string",
+  "start": "YYYY-MM-DD optional",
+  "end": "YYYY-MM-DD optional",
+  "question": "optional string",
+  "options": ["opt1","opt2","opt3"]
+}
+Rules:
+- If prompt says "next week", compute concrete start/end (7-day window starting in 7 days, user's local time ok).
+- City must be a place name (prefer city over airport); include only the city name.
+- For polls, extract 2-5 concise options if present.
+Prompt: ${String(prompt || '')}
+Chat (latest last):\n${context}`;
+          const resp = await client.responses.create({ model: 'gpt-4.1-mini', input: basePrompt });
+          const out = (resp as any)?.output_text || '';
+          let parsed: any = null;
+          try { parsed = JSON.parse(out); } catch {}
+          try { console.log('[AI-Debug] AUTO parsed =>', parsed || out); } catch {}
+          if (parsed && typeof parsed === 'object' && typeof parsed.intent === 'string') {
+            const intent = String(parsed.intent).toLowerCase();
+            if (intent === 'weather') {
+              resolvedTool = 'weather';
+              // reuse weather branch below with parsed city/start/end
+              (body as any).__parsed = { city: parsed.city, start: parsed.start, end: parsed.end };
+            } else if (intent === 'summarize') {
+              resolvedTool = 'summarize';
+            } else if (intent === 'poll') {
+              resolvedTool = 'poll';
+              (body as any).__poll = { question: parsed.question, options: Array.isArray(parsed.options) ? parsed.options : [] };
+            } else if (intent === 'reminder') {
+              resolvedTool = 'reminder';
+            } else if (intent === 'trip') {
+              resolvedTool = 'trip';
+            } else {
+              resolvedTool = 'general';
+            }
+          }
+        }
+      } catch {}
+    }
+
+    if (tool === 'weather' || resolvedTool === 'weather') {
       try {
         const wxKey = process.env.WEATHERAPI_KEY as string | undefined;
 
@@ -90,39 +142,94 @@ export default async function handler(req: any, res: any) {
           return out;
         };
 
-        // Extract potential city phrase strictly from patterns and trim at delimiters
+        // Extract potential city phrase with tolerant patterns and trim at delimiters
         let cityPhrase = '';
-        const cleaned = messages.map((m: any) => String(m.text || '')).join(' ').replace(/[“”"']/g, '');
-        const strict = /weather\s+(?:in|at|for)\s+([A-Za-z][A-Za-z\s]{1,40}?)(?=\s+(?:from|to|on|,|\.|\n)|$)/i.exec(cleaned);
-        if (strict) cityPhrase = (strict[1] || '').trim();
+        const cleaned = [
+          typeof prompt === 'string' ? prompt : '',
+          ...messages.map((m: any) => String(m.text || '')),
+        ].join(' ').replace(/[“”"']/g, '');
+        // If LLM provided parsed city/start/end, use those first
+        cityPhrase = String((body as any)?.__parsed?.city || cityPhrase || '').trim();
+        let parsedStart = String((body as any)?.__parsed?.start || '').trim();
+        let parsedEnd = String((body as any)?.__parsed?.end || '').trim();
+        try { console.log('[AI-Debug] Weather inputs (from LLM)', { city: cityPhrase, parsedStart, parsedEnd, prompt }); } catch {}
+
+        // 1) Allow words between 'weather' and preposition
+        const p1 = !cityPhrase ? /weather[\w\s,.-]{0,80}?(?:in|at|for)\s+([A-Za-z][A-Za-z\s-]{1,40})/i.exec(cleaned) : null;
+        if (!cityPhrase && p1) cityPhrase = (p1[1] || '').trim();
+        // 2) Fallback: any 'in|at|for <city>' anywhere (case-insensitive, allow lowercase)
         if (!cityPhrase) {
-          const looser = /\b(?:in|at|to)\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2})\b/.exec(cleaned);
-          if (looser) cityPhrase = (looser[1] || '').trim();
+          const p2 = /\b(?:in|at|for)\s+([A-Za-z][A-Za-z\s-]{1,40})(?=\s+(?:next|this|coming|week(?:end)?|today|tomorrow|tonight|from|to|on|by)|[?.!,]|$)/i.exec(cleaned);
+          if (p2) cityPhrase = (p2[1] || '').trim();
+        }
+        // Cleanup trailing date/time words
+        if (cityPhrase) {
+          cityPhrase = cityPhrase.replace(/\b(next|this|coming|weekend|week|today|tomorrow|tonight|from|to|on|by)\b.*$/i, '').trim();
+          cityPhrase = cityPhrase.replace(/\s+-\s+.*$/, '').trim();
+        }
+        // Title-case the phrase for nicer matching
+        if (cityPhrase) {
+          cityPhrase = cityPhrase
+            .split(/\s+/)
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(' ');
         }
         // Reject obvious non-city phrases
         if (/chat|thread|message/i.test(cityPhrase)) cityPhrase = '';
         if (cityPhrase && /[^A-Za-z\s]/.test(cityPhrase)) cityPhrase = '';
+        try { console.log('[AI-Debug] Weather city after regex cleanup', { cityPhrase }); } catch {}
 
-        const allDates = toISODates(cleaned).sort();
+        const allDates = (parsedStart && parsedEnd) ? [parsedStart, parsedEnd] : toISODates(cleaned).sort();
         const today = new Date();
         const toISO = (d: Date) => d.toISOString().slice(0,10);
-        const start = allDates[0] || toISO(today);
-        const end = allDates[1] || start;
+        let start = allDates[0] || toISO(today);
+        let end = allDates[1] || start;
+        // Relative ranges: "next week" => seven-day window starting in 7 days
+        if (!parsedStart && /\bnext\s+week\b/i.test(cleaned)) {
+          const s = new Date(); s.setDate(s.getDate() + 7); s.setHours(0,0,0,0);
+          const e = new Date(s); e.setDate(e.getDate() + 6);
+          start = toISO(s); end = toISO(e);
+        }
+        if (!parsedStart && (/\bthis\s+weekend\b/i.test(cleaned) || /\bnext\s+weekend\b/i.test(cleaned))) {
+          const base = new Date();
+          const add = /\bnext\s+weekend\b/i.test(cleaned) ? 7 : 0;
+          const s = new Date(base); s.setDate(s.getDate() + ((6 - s.getDay() + 7) % 7) + add); s.setHours(0,0,0,0); // Saturday
+          const e = new Date(s); e.setDate(e.getDate() + 1); // Sunday
+          start = toISO(s); end = toISO(e);
+        }
+        try { console.log('[AI-Debug] Weather date range', { start, end }); } catch {}
 
         if (wxKey && cityPhrase) {
           // Validate/resolve city via WeatherAPI search, use lat,lon for certainty
           let resolved: { name: string; lat: number; lon: number; country: string } | null = null;
           try {
             const sUrl = `https://api.weatherapi.com/v1/search.json?key=${wxKey}&q=${encodeURIComponent(cityPhrase)}`;
+            const safeUrl = sUrl.replace(/key=[^&]+/, 'key=***');
+            try { console.log('[AI-Debug] Weather search', { url: safeUrl }); } catch {}
             const sResp = await fetch(sUrl);
             if (sResp.ok) {
               const arr: any[] = await sResp.json();
               if (Array.isArray(arr) && arr.length > 0) {
-                const top = arr[0] as any;
+                // Prefer non-airport results that include the requested city
+                const filtered = arr.filter((x: any) => !/airport|air base|aerodrome/i.test(String(x?.name || '')));
+                const exact = filtered.find((x: any) => String(x?.name || '').toLowerCase() === cityPhrase.toLowerCase());
+                const partial = filtered.find((x: any) => String(x?.name || '').toLowerCase().includes(cityPhrase.toLowerCase()));
+                // If both city and region provided (e.g., "Austin, TX") try exact composite match
+                let top = exact || partial || filtered[0] || arr[0];
+                if (!exact && /,/.test(cityPhrase)) {
+                  const parts = cityPhrase.split(',').map(s => s.trim().toLowerCase());
+                  const composite = filtered.find((x: any) => {
+                    const name = String(x?.name || '').toLowerCase();
+                    const region = String(x?.region || '').toLowerCase();
+                    return name === parts[0] && (region === (parts[1] || ''));
+                  });
+                  if (composite) top = composite;
+                }
                 resolved = { name: String(top?.name || cityPhrase), lat: Number(top?.lat || 0), lon: Number(top?.lon || 0), country: String(top?.country || '') };
               }
             }
           } catch {}
+          try { console.log('[AI-Debug] Weather resolved', resolved); } catch {}
 
           if (resolved) {
             const q = `${resolved.lat},${resolved.lon}`;
@@ -131,6 +238,7 @@ export default async function handler(req: any, res: any) {
             if (within14) {
               const daysNeeded = Math.min(14, Math.max(1, Math.ceil((Date.parse(end) - Date.now())/(24*3600*1000)) + 1));
               const url = `https://api.weatherapi.com/v1/forecast.json?key=${wxKey}&q=${encodeURIComponent(q)}&days=${daysNeeded}&aqi=no&alerts=no`;
+              try { console.log('[AI-Debug] Weather forecast request', { url: url.replace(/key=[^&]+/, 'key=***'), q, daysNeeded }); } catch {}
               const resp = await fetch(url);
               if (resp.ok) {
                 const data: any = await resp.json();
@@ -146,6 +254,7 @@ export default async function handler(req: any, res: any) {
               for (let t = Date.parse(start); t <= Date.parse(end); t += 24*3600*1000) {
                 const dt = new Date(t).toISOString().slice(0,10);
                 const url = `https://api.weatherapi.com/v1/future.json?key=${wxKey}&q=${encodeURIComponent(q)}&dt=${dt}`;
+                try { console.log('[AI-Debug] Weather future request', { url: url.replace(/key=[^&]+/, 'key=***'), q, dt }); } catch {}
                 const resp = await fetch(url);
                 if (resp.ok) {
                   const data: any = await resp.json();
@@ -159,6 +268,7 @@ export default async function handler(req: any, res: any) {
             if (results.length > 0) {
               const parts = results.map(r => `${r.date}: ${r.lo}°F–${r.hi}°F, ${r.cond}`);
               weatherSummary = `Weather for ${resolved.name} (${start} → ${end})\n` + parts.join('\n');
+              try { console.log('[AI-Debug] Weather results count', results.length); } catch {}
             }
           }
         }
@@ -166,6 +276,7 @@ export default async function handler(req: any, res: any) {
           weatherSummary = cityPhrase
             ? `Weather summary is unavailable right now for ${cityPhrase}.`
             : 'Weather summary unavailable: specify a city (e.g., “Weather in Denver”).';
+          try { console.log('[AI-Debug] Weather unavailable', { cityPhrase }); } catch {}
         }
       } catch {}
     }
@@ -247,11 +358,12 @@ export default async function handler(req: any, res: any) {
       } catch {}
     }
 
+    const metaTool = resolvedTool || tool;
     if (tool === 'itinerary') {
-      res.status(200).json({ itinerary: itineraryOut ?? [], meta: { tool, chatId } });
+      res.status(200).json({ itinerary: itineraryOut ?? [], meta: { tool: metaTool, chatId } });
       return;
     }
-    res.status(200).json({ draft: { text: draftText }, meta: { tool, chatId } });
+    res.status(200).json({ draft: { text: draftText }, meta: { tool: metaTool, chatId } });
   } catch (e: any) {
     const hasProject = !!process.env.FIREBASE_PROJECT_ID;
     const hasEmail = !!process.env.FIREBASE_CLIENT_EMAIL;

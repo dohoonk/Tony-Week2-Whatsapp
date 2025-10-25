@@ -1,5 +1,15 @@
 # WhatsApp-style Chat (Expo + Firebase)
 
+## 👥 Persona: “The Trip Crew”
+Digital-native groups of 4–6 friends planning weekend trips and events entirely in chat. They want decisions, reminders, itineraries, and weather handled in the same place they talk.
+
+Key needs:
+- Reduce planning chaos with quick summaries and clear next steps
+- Lightweight polls for fast consensus
+- Deadlines with shared reminders
+- AI-generated itineraries
+- Weather-aware plans across the trip window
+
 A cross-platform chat app built with Expo (React Native) and Firebase. Supports email auth, friends with requests, direct/group chats, optimistic messaging with offline outbox, realtime presence, unread divider, and foreground notifications.
 
 ## 1) Prerequisites

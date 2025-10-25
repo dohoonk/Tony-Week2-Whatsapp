@@ -13,6 +13,7 @@ export default function ProfileScreen() {
   const uid = auth.currentUser?.uid!;
   const [displayName, setDisplayName] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
+  const [email, setEmail] = useState('');
   const [photoURL, setPhotoURL] = useState<string | undefined>(undefined);
   const [localAvatar, setLocalAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -23,6 +24,7 @@ export default function ProfileScreen() {
     if (profile) {
       setDisplayName(profile.displayName ?? '');
       setStatusMessage(profile.statusMessage ?? '');
+      setEmail(profile.email ?? '');
       setPhotoURL(profile.photoURL);
     }
   };
@@ -50,7 +52,8 @@ export default function ProfileScreen() {
       if (localAvatar) {
         newPhotoURL = await uploadUserAvatar(uid, localAvatar);
       }
-      await upsertUserProfile(uid, { displayName, statusMessage, photoURL: newPhotoURL });
+      const emailLower = email ? email.trim().toLowerCase() : undefined;
+      await upsertUserProfile(uid, { displayName, statusMessage, photoURL: newPhotoURL, email: email?.trim() || undefined, emailLower });
       setPhotoURL(newPhotoURL);
       setLocalAvatar(null);
       Alert.alert('Saved');
@@ -101,6 +104,15 @@ export default function ProfileScreen() {
         value={statusMessage}
         onChangeText={setStatusMessage}
         placeholder="Available"
+        style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 16 }}
+      />
+      <Text>Email</Text>
+      <TextInput
+        value={email}
+        onChangeText={setEmail}
+        placeholder="you@example.com"
+        autoCapitalize="none"
+        keyboardType="email-address"
         style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 16 }}
       />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>

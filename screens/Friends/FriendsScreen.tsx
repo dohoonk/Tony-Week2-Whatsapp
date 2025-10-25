@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Image } from 'react-native';
 import AppCard from '../../components/AppCard';
 import AppText from '../../components/AppText';
+import FormField from '../../components/FormField';
 import AppButton from '../../components/AppButton';
 import { auth } from '../../firebase/config';
 import { getUserProfile } from '../../firebase/userService';
@@ -215,16 +216,18 @@ export default function FriendsScreen() {
         <AppText variant="title">Friends</AppText>
         <AppButton title="Start Group Chat" variant="primary" size="sm" onPress={() => setGroupVisible(true)} />
       </View>
-      <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12 }}>Add friend by email</Text>
-      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 16 }}>
-        <TextInput
-          value={emailToAdd}
-          onChangeText={setEmailToAdd}
-          placeholder="friend@example.com"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 }}
-        />
+      <AppText variant="title" style={{ fontSize: 18, marginBottom: 12 }}>Add friend by email</AppText>
+      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end', marginBottom: 16 }}>
+        <View style={{ flex: 1 }}>
+          <FormField
+            label="Email"
+            value={emailToAdd}
+            onChangeText={setEmailToAdd}
+            placeholder="friend@example.com"
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+        </View>
         <AppButton title="Send" onPress={onSendRequest} disabled={loading} loading={loading} variant="primary" size="sm" />
       </View>
 

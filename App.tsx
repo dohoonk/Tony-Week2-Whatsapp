@@ -174,7 +174,7 @@ export default function App() {
 
           // Add listeners for newly discovered chats
           for (const chatId of Array.from(currentIds)) {
-            if (perChatSubs.has(chatId)) return;
+            if (perChatSubs.has(chatId)) continue;
             // Initialize baseline from chat's lastMessageAt if available
             try {
               const chatSnap = await getDoc(doc(db, 'chats', chatId));

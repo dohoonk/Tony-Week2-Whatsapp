@@ -110,6 +110,14 @@ export default function ChatRoomScreen() {
   };
 
   useEffect(() => {
+    // Mark all current messages as read immediately on entering the chat
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      try { updateReadStatus(chatId, uid); } catch {}
+    }
+  }, [chatId]);
+
+  useEffect(() => {
     // Set title from chat doc (groupName) if available
     const chatRef = doc(db, 'chats', chatId);
     const unsubTitle = onSnapshot(chatRef, (snap) => {

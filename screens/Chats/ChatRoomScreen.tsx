@@ -542,7 +542,8 @@ export default function ChatRoomScreen() {
           }
         }}
         keyboardShouldPersistTaps="handled"
-        renderItem={({ item }: any) => {
+        renderItem={({ item, index }: any) => {
+          const isFirstUnread = firstUnreadIndex !== null && index === firstUnreadIndex;
           if (item.divider) {
             return (
               <View style={{ alignItems: 'center', marginVertical: 8 }}>
@@ -574,7 +575,7 @@ export default function ChatRoomScreen() {
                 {item.imageUrl ? (
                   <Image source={{ uri: item.imageUrl }} style={{ width: Math.min(200, BUBBLE_MAX), height: 200, borderRadius: 8 }} />
                 ) : (
-                  <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1, color: isLastRead ? '#FF3B30' : undefined }}>{item.text}</Text>
+                  <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1, color: isFirstUnread ? '#10B981' : (isLastRead ? '#FF3B30' : undefined) }}>{item.text}</Text>
                 )}
               </TouchableOpacity>
             );
@@ -607,7 +608,7 @@ export default function ChatRoomScreen() {
                   {item.imageUrl ? (
                     <Image source={{ uri: item.imageUrl }} style={{ width: Math.min(200, BUBBLE_MAX), height: 200, borderRadius: 8 }} />
                   ) : (
-                    <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1, color: (lastReadMessageId && item.id === lastReadMessageId) ? '#FF3B30' : undefined }}>{item.text}</Text>
+                    <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1, color: isFirstUnread ? '#10B981' : ((lastReadMessageId && item.id === lastReadMessageId) ? '#FF3B30' : undefined) }}>{item.text}</Text>
                   )}
                 </View>
                 {unread > 0 ? (

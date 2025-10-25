@@ -52,7 +52,21 @@ export default function GroupChatModal({ visible, onClose, onCreated }: { visibl
         return;
       }
       let photoURL: string | undefined = undefined;
-      const chatId = await createGroupChat(memberIds, groupName || undefined, undefined);
+      // Derive default group name if none provided: "Name1, Name2, Name3's group"
+      let effectiveName = groupName?.trim();
+      if (!effectiveName) {
+        const my = await getUserProfile(uid);
+        const names: string[] = [];
+        if (my?.displayName) names.push(my.displayName);
+        const picked = friends.filter((f) => selected[f.friendUid]);
+        picked.forEach((f) => {
+          const n = f?.profile?.displayName || f?.profile?.email || f.friendUid;
+          names.push(String(n));
+        });
+        const base = names.join(', ');
+        effectiveName = base ? `${base}'s group` : undefined;
+      }
+      const chatId = await createGroupChat(memberIds, effectiveName || undefined, undefined);
       if (photoUri) {
         photoURL = await uploadGroupPhoto(chatId, photoUri);
       }

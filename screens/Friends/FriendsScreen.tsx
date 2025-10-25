@@ -200,7 +200,7 @@ export default function FriendsScreen() {
     <View style={{ flex: 1, padding: 16 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Text style={{ fontSize: 22, fontWeight: '600' }}>Friends</Text>
-        <Button title="Start Group Chat" onPress={() => setGroupVisible(true)} />
+        <AppButton title="Start Group Chat" variant="primary" size="sm" onPress={() => setGroupVisible(true)} />
       </View>
       <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12 }}>Add friend by email</Text>
       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 16 }}>
@@ -212,7 +212,7 @@ export default function FriendsScreen() {
           keyboardType="email-address"
           style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 }}
         />
-        <Button title="Send" onPress={onSendRequest} disabled={loading} />
+        <AppButton title="Send" onPress={onSendRequest} disabled={loading} loading={loading} variant="primary" size="sm" />
       </View>
 
       <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 8 }}>Incoming Requests</Text>

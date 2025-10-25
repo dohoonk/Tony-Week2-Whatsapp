@@ -129,7 +129,10 @@ export default function FriendsScreen() {
       const unsub = onSnapshot(presenceDoc, (snap) => {
         const data: any = snap.data() || {};
         const recent = (ts?: number) => typeof ts === 'number' && Date.now() - ts < 120000; // 2 min window
-        const online = data?.online === true || data?.state === 'online' || recent(data?.lastChanged) || recent(data?.lastSeen);
+        const hasExplicit = typeof data?.online === 'boolean' || typeof data?.state === 'string';
+        const online = hasExplicit
+          ? (data?.online === true || data?.state === 'online')
+          : (recent(data?.lastChanged) || recent(data?.lastSeen));
         setPresenceMap((m) => ({ ...m, [userId]: !!online }));
       });
       presenceUnsubsRef.current[userId] = unsub;
@@ -142,10 +145,11 @@ export default function FriendsScreen() {
       const unsub = onSnapshot(uref, (snap) => {
         const u: any = snap.data() || {};
         const recent = (ts?: number) => typeof ts === 'number' && Date.now() - ts < 120000;
-        const online = u?.status === 'online' || u?.online === true || recent(u?.lastSeen);
-        if (online !== undefined) {
-          setPresenceMap((m) => ({ ...m, [userId]: !!online }));
-        }
+        const hasExplicit = typeof u?.online === 'boolean' || typeof u?.status === 'string';
+        const online = hasExplicit
+          ? (u?.status === 'online' || u?.online === true)
+          : recent(u?.lastSeen);
+        setPresenceMap((m) => ({ ...m, [userId]: !!online }));
       });
       userUnsubsRef.current[userId] = unsub;
     });

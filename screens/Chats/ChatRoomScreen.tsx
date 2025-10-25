@@ -533,8 +533,10 @@ export default function ChatRoomScreen() {
           // unread count for recipients (exclude sender)
           const otherMembers = members.filter((id) => id !== item.senderId);
           const readers = otherMembers.filter((id) => {
-            const t = (readMap || {})[id];
-            return typeof t === 'number' && t >= (item.timestamp || 0);
+            const t: any = (readMap || {})[id];
+            if (typeof t === 'number') return t >= (item.timestamp || 0);
+            if (t && typeof t === 'object' && typeof t.at === 'number') return t.at >= (item.timestamp || 0);
+            return false;
           }).length;
           const unread = Math.max(otherMembers.length - readers, 0);
           const timeStr = item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
@@ -585,6 +587,9 @@ export default function ChatRoomScreen() {
                     <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1, color: (lastReadMessageId && item.id === lastReadMessageId) ? '#FF3B30' : undefined }}>{item.text}</Text>
                   )}
                 </View>
+                {unread > 0 ? (
+                  <Text style={{ fontSize: 10, color: '#999' }}>{unread}</Text>
+                ) : null}
                 {timeStr ? <Text style={{ fontSize: 11, color: '#666' }}>{timeStr}</Text> : null}
               </View>
             </TouchableOpacity>

@@ -3,9 +3,10 @@ import { View, Text, TextInput, Button, Alert, TouchableOpacity } from 'react-na
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { makeRedirectUri } from 'expo-auth-session';
-import { auth } from '../../firebase/config';
+import { auth, db } from '../../firebase/config';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { signInWithEmailAndPassword } from '../../firebase/authService';
+import { doc, setDoc } from 'firebase/firestore';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -24,6 +25,14 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       await signInWithEmailAndPassword(email.trim(), password);
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        const now = Date.now();
+        await Promise.all([
+          setDoc(doc(db, 'presence', uid), { state: 'online', online: true, lastChanged: now }, { merge: true }),
+          setDoc(doc(db, 'users', uid), { status: 'online', online: true, lastSeen: now, updatedAt: now }, { merge: true }),
+        ]);
+      }
     } catch (e: any) {
       Alert.alert('Login failed', e?.message ?? 'Unknown error');
     } finally {
@@ -42,6 +51,14 @@ export default function LoginScreen() {
       if (!idToken) throw new Error('Google sign-in cancelled or failed');
       const credential = GoogleAuthProvider.credential(idToken);
       await signInWithCredential(auth, credential);
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        const now = Date.now();
+        await Promise.all([
+          setDoc(doc(db, 'presence', uid), { state: 'online', online: true, lastChanged: now }, { merge: true }),
+          setDoc(doc(db, 'users', uid), { status: 'online', online: true, lastSeen: now, updatedAt: now }, { merge: true }),
+        ]);
+      }
     } catch (e: any) {
       Alert.alert('Google Sign-in failed', e?.message ?? 'Unknown error');
     } finally {

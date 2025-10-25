@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions, AppState, Modal, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHeaderHeight } from '@react-navigation/elements';
 import NetInfo from '@react-native-community/netinfo';
 import { RouteProp, useRoute, useNavigation, useIsFocused } from '@react-navigation/native';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
@@ -24,6 +26,8 @@ type Message = {
 
 export default function ChatRoomScreen() {
   const BUBBLE_MAX = Math.round(Dimensions.get('window').width * 0.7);
+  const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight ? useHeaderHeight() : 0;
   const route = useRoute<RouteProp<ChatsStackParamList, 'ChatRoom'>>();
   const navigation = useNavigation();
   const { chatId } = route.params;
@@ -615,7 +619,11 @@ export default function ChatRoomScreen() {
   }, [messages, firstUnreadIndex, hasMoreOlder, oldestCursor, lastReadAt]);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? (headerHeight || 0) : 0}
+    >
       {!isOnline ? (
         <View style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#FEE2E2' }}>
           <Text style={{ color: '#991B1B' }}>Offline – messages will send when reconnected</Text>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions, AppState, Modal, ActivityIndicator } from 'react-native';
 import Banner from '../../components/Banner';
+import AppText from '../../components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import NetInfo from '@react-native-community/netinfo';
@@ -681,7 +682,7 @@ export default function ChatRoomScreen() {
           if (item.divider) {
             return (
               <View style={{ alignItems: 'center', marginVertical: 8 }}>
-                <Text style={{ color: '#FF3B30' }}>New messages</Text>
+                <AppText variant="meta" style={{ color: '#FF3B30' }}>New messages</AppText>
               </View>
             );
           }
@@ -703,9 +704,9 @@ export default function ChatRoomScreen() {
             return (
               <TouchableOpacity onLongPress={() => setMenuForId(item.id)} activeOpacity={0.9} style={{ marginBottom: 8, alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
                 {unread > 0 ? (
-                  <Text style={{ fontSize: 10, color: '#999' }}>{unread}</Text>
+                  <AppText variant="meta" style={{ color: '#999' }}>{unread}</AppText>
                 ) : null}
-                {item.temp ? <Text style={{ fontSize: 11, color: '#999' }}>sending…</Text> : (timeStr ? <Text style={{ fontSize: 11, color: '#666' }}>{timeStr}</Text> : null)}
+                {item.temp ? <AppText variant="meta" style={{ color: '#999' }}>sending…</AppText> : (timeStr ? <AppText variant="meta" style={{ color: '#666' }}>{timeStr}</AppText> : null)}
                 {item.imageUrl ? (
                   <Image source={{ uri: item.imageUrl }} style={{ width: Math.min(200, BUBBLE_MAX), height: 200, borderRadius: 8 }} />
                 ) : (
@@ -724,7 +725,7 @@ export default function ChatRoomScreen() {
           if (isAI) {
             return (
               <View style={{ marginBottom: 8, alignSelf: 'flex-start', maxWidth: BUBBLE_MAX }}>
-                <Text style={{ fontSize: 11, color: '#6B7280', marginBottom: 2 }}>TripMate AI</Text>
+                <AppText variant="meta" style={{ color: '#6B7280', marginBottom: 2 }}>TripMate AI</AppText>
                 <Text style={{ backgroundColor: '#E5F3FF', borderRadius: 8, padding: 8 }}>{item.text}</Text>
               </View>
             );
@@ -737,7 +738,7 @@ export default function ChatRoomScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, maxWidth: BUBBLE_MAX }}>
                 <View style={{ maxWidth: BUBBLE_MAX }}>
                   {sender?.displayName ? (
-                    <Text style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>{sender.displayName}</Text>
+                    <AppText variant="meta" style={{ color: '#888', marginBottom: 2 }}>{sender.displayName}</AppText>
                   ) : null}
                   {item.imageUrl ? (
                     <Image source={{ uri: item.imageUrl }} style={{ width: Math.min(200, BUBBLE_MAX), height: 200, borderRadius: 8 }} />
@@ -746,9 +747,9 @@ export default function ChatRoomScreen() {
                   )}
                 </View>
                 {unread > 0 ? (
-                  <Text style={{ fontSize: 10, color: '#999' }}>{unread}</Text>
+                  <AppText variant="meta" style={{ color: '#999' }}>{unread}</AppText>
                 ) : null}
-                {timeStr ? <Text style={{ fontSize: 11, color: '#666' }}>{timeStr}</Text> : null}
+                {timeStr ? <AppText variant="meta" style={{ color: '#666' }}>{timeStr}</AppText> : null}
               </View>
             </TouchableOpacity>
           );
@@ -758,7 +759,7 @@ export default function ChatRoomScreen() {
         <Text style={{ textAlign: 'center', color: '#2563EB', marginBottom: 4 }}>Trip linked · {String(chatMeta.tripId).slice(0, 8)}…</Text>
       ) : null}
       {typingNames ? (
-        <Text style={{ textAlign: 'center', color: '#888', marginBottom: 4 }}>{typingNames}</Text>
+        <AppText variant="meta" style={{ textAlign: 'center', color: '#888', marginBottom: 4 }}>{typingNames}</AppText>
       ) : null}
       <View style={{ flexDirection: 'row', padding: 8, gap: 8, alignItems: 'center' }}>
         <TouchableOpacity onPress={onPickImage} style={{ paddingHorizontal: 8, paddingVertical: 6 }}>

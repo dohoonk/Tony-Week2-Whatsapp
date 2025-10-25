@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Image, TouchableOpacity, Alert } from 'react-native';
+import AppText from '../../components/AppText';
+import FormField from '../../components/FormField';
 import AppButton from '../../components/AppButton';
 import { auth } from '../../firebase/config';
 import { getUserProfile, upsertUserProfile } from '../../firebase/userService';
@@ -82,7 +84,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 22, fontWeight: '600', marginBottom: 16 }}>Profile</Text>
+      <AppText variant="title" style={{ marginBottom: 16 }}>Profile</AppText>
       <TouchableOpacity onPress={pickImage} style={{ alignSelf: 'center', marginBottom: 16 }}>
         {localAvatar || photoURL ? (
           <Image source={{ uri: localAvatar ?? photoURL }} style={{ width: 100, height: 100, borderRadius: 50 }} />
@@ -92,29 +94,9 @@ export default function ProfileScreen() {
           </View>
         )}
       </TouchableOpacity>
-      <Text>Name</Text>
-      <TextInput
-        value={displayName}
-        onChangeText={setDisplayName}
-        placeholder="Your name"
-        style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 12 }}
-      />
-      <Text>Status</Text>
-      <TextInput
-        value={statusMessage}
-        onChangeText={setStatusMessage}
-        placeholder="Available"
-        style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 16 }}
-      />
-      <Text>Email</Text>
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        placeholder="you@example.com"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 16 }}
-      />
+      <FormField label="Name" value={displayName} onChangeText={setDisplayName} placeholder="Your name" />
+      <FormField label="Status" value={statusMessage} onChangeText={setStatusMessage} placeholder="Available" />
+      <FormField label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
         <AppButton title={loading ? 'Saving...' : 'Save'} onPress={onSave} disabled={loading} loading={loading} variant="primary" />
         <AppButton title="Log out" onPress={onLogout} variant="destructive" />

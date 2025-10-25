@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions, AppState, Modal, ActivityIndicator } from 'react-native';
+import Banner from '../../components/Banner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import NetInfo from '@react-native-community/netinfo';
@@ -625,8 +626,8 @@ export default function ChatRoomScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? (headerHeight || 0) : 0}
     >
       {!isOnline ? (
-        <View style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#FEE2E2' }}>
-          <Text style={{ color: '#991B1B' }}>Offline – messages will send when reconnected</Text>
+        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+          <Banner kind="error">Offline – messages will send when reconnected</Banner>
         </View>
       ) : null}
       <FlatList

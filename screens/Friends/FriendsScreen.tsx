@@ -216,8 +216,8 @@ export default function FriendsScreen() {
         <AppText variant="title">Friends</AppText>
         <AppButton title="Start Group Chat" variant="primary" size="sm" onPress={() => setGroupVisible(true)} />
       </View>
-      <AppText variant="title" style={{ fontSize: 18, marginBottom: 12 }}>Add friend by email</AppText>
-      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+      <AppText variant="title" style={{ fontSize: 18, marginBottom: 8 }}>Add friend by email</AppText>
+      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'stretch', marginBottom: 16 }}>
         <View style={{ flex: 1 }}>
           <FormField
             label="Email"
@@ -229,7 +229,9 @@ export default function FriendsScreen() {
             hideLabel
           />
         </View>
-        <AppButton title="Send" onPress={onSendRequest} disabled={loading} loading={loading} variant="primary" size="sm" />
+        <View style={{ justifyContent: 'center' }}>
+          <AppButton title="Send" onPress={onSendRequest} disabled={loading} loading={loading} variant="primary" size="sm" />
+        </View>
       </View>
 
       <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 8 }}>Incoming Requests</Text>

@@ -12,7 +12,7 @@ type Props = {
 export default function FormField({ label, helpText, errorText, hideLabel, style, ...inputProps }: Props) {
   const hasError = !!errorText;
   return (
-    <View style={{ marginBottom: spacing[3] }}>
+    <View style={{ marginBottom: hideLabel ? 0 : spacing[3] }}>
       {!hideLabel ? (
         <Text style={{ color: colors.textSubtle, ...(typography.meta as any), marginBottom: 6 }}>{label}</Text>
       ) : null}

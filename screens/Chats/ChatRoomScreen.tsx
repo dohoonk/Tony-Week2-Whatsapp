@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions, AppState, Modal, ActivityIndicator } from 'react-native';
-import * as Network from 'expo-network';
+import NetInfo from '@react-native-community/netinfo';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
-import { collection, onSnapshot, orderBy, query, doc, getDoc, limit, startAfter, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, doc, getDoc, limit, startAfter, getDocs, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { auth } from '../../firebase/config';
 import { sendMessage, updateReadStatus } from '../../firebase/chatService';
@@ -265,28 +265,36 @@ export default function ChatRoomScreen() {
     return () => sub.remove();
   }, []);
 
-  // Poll network state and auto-flush outbox on reconnect
+  // Listen to connectivity changes and run catch-up immediately on reconnect
   useEffect(() => {
-    let mounted = true;
-    let lastOnline: boolean | null = null;
-    const tick = async () => {
-      try {
-        const st = await Network.getNetworkStateAsync();
-        if (!mounted) return;
-        const online = !!st.isConnected && !!st.isInternetReachable;
-        setIsOnline(online);
-        if (lastOnline === false && online) {
-          // reconnected
-          flushOutboxNow();
-          startRetryLoop();
-        }
-        lastOnline = online;
-      } catch {}
-    };
-    const id = setInterval(tick, 3000);
-    tick();
-    return () => { mounted = false; clearInterval(id); };
-  }, []);
+    const unsub = NetInfo.addEventListener(async (state) => {
+      const online = !!state.isConnected && !!state.isInternetReachable;
+      setIsOnline(online);
+      if (online) {
+        // Immediate outbox flush
+        await flushOutboxNow();
+        startRetryLoop();
+        // One-shot catch-up for any messages newer than our max timestamp
+        try {
+          const maxTs = messages.length > 0 ? (messages[messages.length - 1]?.timestamp || 0) : 0;
+          if (maxTs > 0) {
+            const ref = collection(db, 'chats', chatId, 'messages');
+            const qy = query(ref, orderBy('timestamp', 'asc'), where('timestamp', '>', maxTs), limit(100));
+            const snap = await getDocs(qy);
+            if (!snap.empty) {
+              const newer = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+              setMessages((prev) => {
+                const map = new Map<string, any>();
+                [...prev, ...newer].forEach((m: any) => map.set(m.id, m));
+                return Array.from(map.values()).sort((a: any, b: any) => (a.timestamp || 0) - (b.timestamp || 0));
+              });
+            }
+          }
+        } catch {}
+      }
+    });
+    return () => unsub();
+  }, [chatId, messages]);
 
   // Compute the index of the first unread message (in raw messages),
   // anchored to the entry-time read boundary so the divider persists until unmount

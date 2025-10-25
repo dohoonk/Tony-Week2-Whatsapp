@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions, AppState, Modal, ActivityIndicator } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
+import { RouteProp, useRoute, useNavigation, useIsFocused } from '@react-navigation/native';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
 import { collection, onSnapshot, orderBy, query, doc, getDoc, limit, startAfter, getDocs, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
@@ -27,6 +27,7 @@ export default function ChatRoomScreen() {
   const route = useRoute<RouteProp<ChatsStackParamList, 'ChatRoom'>>();
   const navigation = useNavigation();
   const { chatId } = route.params;
+  const isFocused = useIsFocused();
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [lastReadAt, setLastReadAt] = useState<number | null>(null);
@@ -60,6 +61,7 @@ export default function ChatRoomScreen() {
   const [currentTool, setCurrentTool] = useState<'summarize' | 'poll' | 'reminder' | 'trip' | 'weather'>('summarize');
   const [reminderDueAt, setReminderDueAt] = useState<number | null>(null);
   const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [pendingCount, setPendingCount] = useState<number>(0);
 
   const parseDueAtFromText = (text: string): number | null => {
     try {
@@ -114,8 +116,15 @@ export default function ChatRoomScreen() {
   };
 
   useEffect(() => {
+    // Set/clear the globally tracked focused chat for notification suppression
+    try {
+      (global as any).__currentChatId = isFocused ? chatId : null;
+      (global as any).__isChatRoomFocused = !!isFocused;
+      if (__DEV__) {
+        try { console.log('ChatRoomScreen focus state', { chatId, isFocused }); } catch {}
+      }
+    } catch {}
     // Set title from chat doc (groupName) if available
-    try { (global as any).__currentChatId = chatId; } catch {}
     const chatRef = doc(db, 'chats', chatId);
     const unsubTitle = onSnapshot(chatRef, (snap) => {
       const data: any = snap.data() || {};
@@ -195,7 +204,7 @@ export default function ChatRoomScreen() {
       if (!hasLoadedRef.current) hasLoadedRef.current = true;
     });
     return () => { unsub(); unsubTitle(); };
-  }, [chatId]);
+  }, [chatId, isFocused]);
 
   useEffect(() => {
     return () => {
@@ -226,7 +235,9 @@ export default function ChatRoomScreen() {
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
         delete outboxRef.current[tempId];
         // if queue empty, stop timer
-        if (Object.keys(outboxRef.current).length === 0 && retryTimerRef.current) {
+        const remaining = Object.keys(outboxRef.current).length;
+        setPendingCount(remaining);
+        if (remaining === 0 && retryTimerRef.current) {
           clearInterval(retryTimerRef.current);
           retryTimerRef.current = null;
         }
@@ -250,6 +261,7 @@ export default function ChatRoomScreen() {
         }
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
         delete outboxRef.current[tempId];
+        setPendingCount(Object.keys(outboxRef.current).length);
       } catch (e) {
         // stop immediate loop on first failure; timer will retry
         break;
@@ -262,6 +274,7 @@ export default function ChatRoomScreen() {
       if (state === 'active') {
         flushOutboxNow();
         startRetryLoop();
+        setPendingCount(Object.keys(outboxRef.current).length);
       }
     });
     return () => sub.remove();
@@ -274,8 +287,11 @@ export default function ChatRoomScreen() {
       setIsOnline(online);
       if (online) {
         // Immediate outbox flush
-        await flushOutboxNow();
-        startRetryLoop();
+        try {
+          await flushOutboxNow();
+          startRetryLoop();
+          setPendingCount(Object.keys(outboxRef.current).length);
+        } catch {}
         // One-shot catch-up for any messages newer than our max timestamp
         try {
           const maxTs = messages.length > 0 ? (messages[messages.length - 1]?.timestamp || 0) : 0;
@@ -298,7 +314,7 @@ export default function ChatRoomScreen() {
     // Set initial state once
     NetInfo.fetch().then((state) => setIsOnline(!!state.isConnected && (state.isInternetReachable !== false))).catch(() => {});
     return () => unsub();
-  }, [chatId, messages]);
+  }, [chatId]);
 
   // Compute the index of the first unread message (in raw messages),
   // anchored to the entry-time read boundary so the divider persists until unmount
@@ -344,6 +360,13 @@ export default function ChatRoomScreen() {
       initialLastReadAtRef.current = null;
       persistDividerRef.current = false;
       didInitialScrollRef.current = false;
+      try {
+        (global as any).__currentChatId = null;
+        (global as any).__isChatRoomFocused = false;
+        if (__DEV__) {
+          try { console.log('ChatRoomScreen unmount; cleared focus globals', { chatId }); } catch {}
+        }
+      } catch {}
     };
   }, []);
 
@@ -403,9 +426,46 @@ export default function ChatRoomScreen() {
     return `${names.slice(0, 3).join(', ')} ++ typing…`;
   }, [typingIds, profileCache]);
 
+  const parseMention = (raw: string): { isTM: boolean; prompt: string; tool: 'summarize' | 'poll' | 'reminder' | 'trip' | 'weather' | 'general' } => {
+    const txt = raw.trim();
+    const mentionMatch = /^@(tm|tripmate|tripmateai)\b\s*(.*)$/i.exec(txt);
+    if (!mentionMatch) return { isTM: false, prompt: '', tool: 'general' };
+    const prompt = (mentionMatch[2] || '').trim();
+    const lower = prompt.toLowerCase();
+    let tool: 'summarize' | 'poll' | 'reminder' | 'trip' | 'weather' | 'general' = 'general';
+    if (/\b(summarize|recap|tl;dr)\b/.test(lower)) tool = 'summarize';
+    else if (/\b(poll|vote|options?)\b/.test(lower)) tool = 'poll';
+    else if (/\b(reminder|remind|today|tomorrow|at\s+\d)\b/.test(lower)) tool = 'reminder';
+    else if (/\b(weather|forecast|temp|temperature)\b/.test(lower)) tool = 'weather';
+    else if (/\b(trip|itinerary|plan)\b/.test(lower)) tool = 'trip';
+    return { isTM: true, prompt, tool };
+  };
+
   const onSend = async () => {
     const uid = auth.currentUser?.uid;
     if (!uid || !text.trim()) return;
+    // @TM interception: open AI preview instead of sending user text
+    const { isTM, prompt, tool } = parseMention(text);
+    if (isTM) {
+      try {
+        setLoadingDraft(true);
+        const requested = tool === 'general' ? 'auto' : tool;
+        const draft = await fetchDraft(chatId, requested, { prompt });
+        const resolvedTool = (draft as any)?.tool || (tool === 'general' ? 'summarize' : tool);
+        setCurrentTool(resolvedTool);
+        setPreviewText(draft.text || '');
+        if (resolvedTool === 'reminder') {
+          const parsed = parseDueAtFromText(draft.text || prompt || '');
+          setReminderDueAt(parsed ?? (Date.now() + 60 * 60 * 1000));
+        }
+        setPreviewVisible(true);
+      } catch (e: any) {
+        Alert.alert('TripMate AI failed', String(e?.message || e));
+      } finally {
+        setLoadingDraft(false);
+      }
+      return;
+    }
     const tempId = `temp-${Date.now()}`;
     const optimistic: Message = {
       id: tempId,
@@ -556,11 +616,9 @@ export default function ChatRoomScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {(!isOnline || Object.keys(outboxRef.current).length > 0) ? (
-        <View style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: isOnline ? '#FEF3C7' : '#FEE2E2' }}>
-          <Text style={{ color: isOnline ? '#92400E' : '#991B1B' }}>
-            {isOnline ? `Pending messages: ${Object.keys(outboxRef.current).length}` : 'Offline – messages will send when reconnected'}
-          </Text>
+      {!isOnline ? (
+        <View style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#FEE2E2' }}>
+          <Text style={{ color: '#991B1B' }}>Offline – messages will send when reconnected</Text>
         </View>
       ) : null}
       <FlatList

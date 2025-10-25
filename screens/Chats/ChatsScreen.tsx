@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import AppText from '../../components/AppText';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
@@ -50,7 +51,7 @@ export default function ChatsScreen() {
       <FlatList
         data={chats}
         keyExtractor={(item) => item.id}
-        ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#666' }}>No chats yet</Text>}
+        ListEmptyComponent={<AppText variant="meta" style={{ textAlign: 'center', color: '#666' }}>No chats yet</AppText>}
         renderItem={({ item }) => {
           let title = item.type === 'group' ? item.groupName ?? 'Group' : 'Direct chat';
           let avatar: any = null;
@@ -94,10 +95,10 @@ export default function ChatsScreen() {
                 <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#eee' }} />
               )}
               <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: '600' }}>{title}</Text>
-                {item.lastMessage ? <Text style={{ color: '#666' }} numberOfLines={1}>{item.lastMessage}</Text> : null}
+                <AppText>{title}</AppText>
+                {item.lastMessage ? <AppText variant="meta" style={{ color: '#666' }} numberOfLines={1}>{item.lastMessage}</AppText> : null}
               </View>
-              <Text style={{ color: '#666', marginLeft: 8 }}>{formatLastMessageTime(item.lastMessageAt)}</Text>
+              <AppText variant="meta" style={{ color: '#666', marginLeft: 8 }}>{formatLastMessageTime(item.lastMessageAt)}</AppText>
             </TouchableOpacity>
           );
         }}

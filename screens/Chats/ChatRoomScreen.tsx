@@ -48,6 +48,7 @@ export default function ChatRoomScreen() {
   const [hasMoreOlder, setHasMoreOlder] = useState<boolean>(true);
   const [loadingOlder, setLoadingOlder] = useState<boolean>(false);
   const lastMarkedRef = React.useRef<number>(0);
+  const markedOnOpenRef = React.useRef<boolean>(false);
   const outboxRef = React.useRef<Record<string, { kind: 'text' | 'image'; text?: string; uri?: string }>>({});
   const retryTimerRef = React.useRef<any>(null);
   const [previewVisible, setPreviewVisible] = useState(false);
@@ -110,14 +111,6 @@ export default function ChatRoomScreen() {
   };
 
   useEffect(() => {
-    // Mark all current messages as read immediately on entering the chat
-    const uid = auth.currentUser?.uid;
-    if (uid) {
-      try { updateReadStatus(chatId, uid); } catch {}
-    }
-  }, [chatId]);
-
-  useEffect(() => {
     // Set title from chat doc (groupName) if available
     const chatRef = doc(db, 'chats', chatId);
     const unsubTitle = onSnapshot(chatRef, (snap) => {
@@ -147,6 +140,10 @@ export default function ChatRoomScreen() {
           const rs = data?.readStatus || {};
           initialLastReadAtRef.current = rs[uid] ?? null;
           persistDividerRef.current = true;
+          if (!markedOnOpenRef.current) {
+            try { await updateReadStatus(chatId, uid); } catch {}
+            markedOnOpenRef.current = true;
+          }
         }
       } catch {}
     })();
@@ -321,6 +318,11 @@ export default function ChatRoomScreen() {
         initialLastReadAtRef.current = current;
         // Persist divider for the session; we will clear on unmount
         persistDividerRef.current = true;
+        if (!markedOnOpenRef.current) {
+          // Ensure we mark all as read once on open after capturing boundary
+          updateReadStatus(chatId, uid);
+          markedOnOpenRef.current = true;
+        }
       }
     });
     return () => unsub();
@@ -472,6 +474,25 @@ export default function ChatRoomScreen() {
       setLoadingOlder(false);
     }
   };
+
+  // Backfill older pages automatically until the unread boundary is included (or we reach limits)
+  const backfillingRef = React.useRef<boolean>(false);
+  const backfillAttemptsRef = React.useRef<number>(0);
+  useEffect(() => {
+    const boundary = (initialLastReadAtRef.current ?? lastReadAt) as number | null;
+    if (!boundary) return;
+    if (firstUnreadIndex !== null) return; // already found within loaded set
+    if (messages.length === 0) return;
+    const earliestTs = messages[0]?.timestamp || 0;
+    if (earliestTs <= boundary) return; // we have messages at/older than boundary
+    if (!hasMoreOlder || !oldestCursor) return;
+    if (backfillingRef.current || backfillAttemptsRef.current >= 5) return;
+    backfillingRef.current = true;
+    backfillAttemptsRef.current += 1;
+    (async () => {
+      try { await loadOlder(); } finally { backfillingRef.current = false; }
+    })();
+  }, [messages, firstUnreadIndex, hasMoreOlder, oldestCursor, lastReadAt]);
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

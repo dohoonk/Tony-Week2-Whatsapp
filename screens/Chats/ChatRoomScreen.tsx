@@ -31,6 +31,7 @@ export default function ChatRoomScreen() {
   const [text, setText] = useState('');
   const [lastReadAt, setLastReadAt] = useState<number | null>(null);
   const [isSomeoneTyping, setIsSomeoneTyping] = useState(false);
+  const [typingIds, setTypingIds] = useState<string[]>([]);
   const typingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const prevCountRef = React.useRef<number>(0);
   const listRef = React.useRef<FlatList<any>>(null);
@@ -375,15 +376,31 @@ export default function ChatRoomScreen() {
     const uid = auth.currentUser?.uid;
     const typingRef = collection(db, 'chats', chatId, 'typing');
     const unsub = onSnapshot(typingRef, (snap) => {
-      let someone = false;
+      const active: string[] = [];
       snap.forEach((d) => {
         const data: any = d.data();
-        if (d.id !== uid && data?.typing) someone = true;
+        if (d.id !== uid && data?.typing) active.push(d.id);
       });
-      setIsSomeoneTyping(someone);
+      setIsSomeoneTyping(active.length > 0);
+      setTypingIds(active);
     });
     return () => unsub();
   }, [chatId]);
+
+  // Resolve typing names from profiles
+  const typingNames = React.useMemo(() => {
+    if (!typingIds || typingIds.length === 0) return '';
+    const names: string[] = [];
+    typingIds.forEach((id) => {
+      const prof = profileCache[id];
+      if (!prof) ensureProfile(id);
+      const nm = prof?.displayName || id;
+      names.push(String(nm));
+    });
+    if (names.length === 0) return '';
+    if (names.length <= 3) return `${names.join(', ')} typing…`;
+    return `${names.slice(0, 3).join(', ')} ++ typing…`;
+  }, [typingIds, profileCache]);
 
   const onSend = async () => {
     const uid = auth.currentUser?.uid;
@@ -672,8 +689,8 @@ export default function ChatRoomScreen() {
       {chatMeta?.tripId ? (
         <Text style={{ textAlign: 'center', color: '#2563EB', marginBottom: 4 }}>Trip linked · {String(chatMeta.tripId).slice(0, 8)}…</Text>
       ) : null}
-      {isSomeoneTyping ? (
-        <Text style={{ textAlign: 'center', color: '#888', marginBottom: 4 }}>Typing…</Text>
+      {typingNames ? (
+        <Text style={{ textAlign: 'center', color: '#888', marginBottom: 4 }}>{typingNames}</Text>
       ) : null}
       <View style={{ flexDirection: 'row', padding: 8, gap: 8, alignItems: 'center' }}>
         <TouchableOpacity onPress={onPickImage} style={{ paddingHorizontal: 8, paddingVertical: 6 }}>

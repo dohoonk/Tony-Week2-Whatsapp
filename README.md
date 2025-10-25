@@ -153,14 +153,7 @@ npx expo start -c
 - Weather path logs (server): intent JSON from LLM, parsed city/date range, WeatherAPI search/forecast URLs (redacted key), and result count.
 - Set `EXPO_PUBLIC_AI_API_URL` correctly; verify Firebase Admin creds on Vercel.
 
-## 8) Known gaps / TODOs
-- Google OAuth
-- Firestore offline persistence config (IndexedDB on web / persistence for RN)
-- ESLint + Prettier baseline
-- Branding assets (icon/splash) and theme
-- Background push (requires Dev Client + APNs)
-
-## 9) Scripts
+## 8) Scripts
 Common commands:
 ```bash
 # Start (Expo Go)
@@ -173,7 +166,7 @@ npx expo start -c --port 8090
 press i in the Expo CLI, or: open -a Simulator
 ```
 
-## 10) Security notes
+## 9) Security notes
 - Start with permissive Firestore rules for MVP/testing; harden later.
 - Always review rules before distributing builds.
 

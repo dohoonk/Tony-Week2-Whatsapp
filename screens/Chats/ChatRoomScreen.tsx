@@ -159,13 +159,10 @@ export default function ChatRoomScreen() {
         return Array.from(map.values()).sort((a: any, b: any) => (a.timestamp || 0) - (b.timestamp || 0));
       });
       const uid = auth.currentUser?.uid;
-      // Only mark read when we've loaded once and are at (or near) the bottom
+      // Mark read immediately when at (or near) the bottom
       if (uid && hasLoadedRef.current && atBottomRef.current) {
-        const now = Date.now();
-        if (now - lastMarkedRef.current > 500) {
-          updateReadStatus(chatId, uid);
-          lastMarkedRef.current = now;
-        }
+        updateReadStatus(chatId, uid);
+        lastMarkedRef.current = Date.now();
       }
       // Foreground local notification for new incoming message
       const prev = prevCountRef.current;
@@ -511,11 +508,8 @@ export default function ChatRoomScreen() {
             .filter((vi: any) => !vi.item?.divider && typeof vi.item?.timestamp === 'number')
             .reduce((m: number, vi: any) => Math.max(m, vi.item.timestamp as number), 0);
           if (maxTs > (lastReadAt ?? 0)) {
-            const now = Date.now();
-            if (now - lastMarkedRef.current > 500) {
-              updateReadStatus(chatId, uid);
-              lastMarkedRef.current = now;
-            }
+            updateReadStatus(chatId, uid);
+            lastMarkedRef.current = Date.now();
           }
         }}
         keyboardShouldPersistTaps="handled"

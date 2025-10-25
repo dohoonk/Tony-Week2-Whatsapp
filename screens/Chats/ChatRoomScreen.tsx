@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions, AppState, Modal, ActivityIndicator } from 'react-native';
+import * as Network from 'expo-network';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
 import { collection, onSnapshot, orderBy, query, doc, getDoc, limit, startAfter, getDocs } from 'firebase/firestore';
@@ -57,6 +58,7 @@ export default function ChatRoomScreen() {
   const [menuForId, setMenuForId] = useState<string | null>(null);
   const [currentTool, setCurrentTool] = useState<'summarize' | 'poll' | 'reminder' | 'trip' | 'weather'>('summarize');
   const [reminderDueAt, setReminderDueAt] = useState<number | null>(null);
+  const [isOnline, setIsOnline] = useState<boolean>(true);
 
   const parseDueAtFromText = (text: string): number | null => {
     try {
@@ -179,10 +181,11 @@ export default function ChatRoomScreen() {
         if (last && last.senderId !== myUid) {
           const body = last.text ? String(last.text) : 'Sent a photo';
           showLocalNotification('New message', body);
-        } else if (last && last.senderId === myUid && atBottomRef.current) {
+        } else if (last && last.senderId === myUid && (atBottomRef.current)) {
           // If I just sent a message, scroll to bottom to reveal it
           requestAnimationFrame(() => {
             listRef.current?.scrollToEnd?.({ animated: true });
+            atBottomRef.current = true;
           });
         }
       }
@@ -260,6 +263,29 @@ export default function ChatRoomScreen() {
       }
     });
     return () => sub.remove();
+  }, []);
+
+  // Poll network state and auto-flush outbox on reconnect
+  useEffect(() => {
+    let mounted = true;
+    let lastOnline: boolean | null = null;
+    const tick = async () => {
+      try {
+        const st = await Network.getNetworkStateAsync();
+        if (!mounted) return;
+        const online = !!st.isConnected && !!st.isInternetReachable;
+        setIsOnline(online);
+        if (lastOnline === false && online) {
+          // reconnected
+          flushOutboxNow();
+          startRetryLoop();
+        }
+        lastOnline = online;
+      } catch {}
+    };
+    const id = setInterval(tick, 3000);
+    tick();
+    return () => { mounted = false; clearInterval(id); };
   }, []);
 
   // Compute the index of the first unread message (in raw messages),
@@ -502,6 +528,13 @@ export default function ChatRoomScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {(!isOnline || Object.keys(outboxRef.current).length > 0) ? (
+        <View style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: isOnline ? '#FEF3C7' : '#FEE2E2' }}>
+          <Text style={{ color: isOnline ? '#92400E' : '#991B1B' }}>
+            {isOnline ? `Pending messages: ${Object.keys(outboxRef.current).length}` : 'Offline – messages will send when reconnected'}
+          </Text>
+        </View>
+      ) : null}
       <FlatList
         ref={listRef}
         style={{ flex: 1 }}

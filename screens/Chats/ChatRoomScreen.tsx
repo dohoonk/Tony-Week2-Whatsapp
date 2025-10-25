@@ -268,7 +268,7 @@ export default function ChatRoomScreen() {
   // Listen to connectivity changes and run catch-up immediately on reconnect
   useEffect(() => {
     const unsub = NetInfo.addEventListener(async (state) => {
-      const online = !!state.isConnected && !!state.isInternetReachable;
+      const online = !!state.isConnected && (state.isInternetReachable !== false);
       setIsOnline(online);
       if (online) {
         // Immediate outbox flush
@@ -293,6 +293,8 @@ export default function ChatRoomScreen() {
         } catch {}
       }
     });
+    // Set initial state once
+    NetInfo.fetch().then((state) => setIsOnline(!!state.isConnected && (state.isInternetReachable !== false))).catch(() => {});
     return () => unsub();
   }, [chatId, messages]);
 

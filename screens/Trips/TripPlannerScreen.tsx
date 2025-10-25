@@ -85,15 +85,67 @@ export default function TripPlannerScreen() {
     try {
       setWeatherWarn('');
       const { start, end } = computeStartEndIso();
-      const city = weatherCity;
-      if (!chatId || !city || !start || !end) {
-        setWeatherWarn('Missing destination or dates');
+      if (!chatId || !start || !end) {
+        setWeatherWarn('Missing dates');
         return;
       }
-      const res = await fetchTripWeather(chatId, city, start, end);
-      setWeatherWarn((res as any)?.warning || '');
+
+      // Build date list from itinerary or range
+      const dates: string[] = [];
+      if (Array.isArray(itinerary) && itinerary.length > 0) {
+        itinerary.forEach((d) => { if (d?.date) dates.push(d.date); });
+      } else {
+        // fallback to start..end
+        for (let t = Date.parse(start); t <= Date.parse(end); t += 24*3600*1000) {
+          dates.push(new Date(t).toISOString().slice(0,10));
+        }
+      }
+      if (dates.length === 0) {
+        setWeatherWarn('No dates found for weather');
+        return;
+      }
+
+      // Infer default city from title
+      const defaultCity = weatherCity;
+      // Heuristic: parse city from day items; carry forward last known city
+      const cityForDate: Record<string, string> = {};
+      let currentCity = defaultCity || '';
+      const cityRe = /(arrive|in|at|to)\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2})/i;
+      dates.forEach((dt) => {
+        const day = (itinerary || []).find((d) => d.date === dt);
+        let found = '';
+        if (day) {
+          for (const raw of (day.items || [])) {
+            const m = cityRe.exec(String(raw || ''));
+            if (m && m[2]) { found = m[2].trim(); break; }
+          }
+        }
+        if (found) currentCity = found;
+        cityForDate[dt] = currentCity || (defaultCity || '');
+      });
+
+      // Group consecutive dates by city to minimize API calls
+      type Segment = { city: string; start: string; end: string };
+      const segments: Segment[] = [];
+      let segCity = '';
+      let segStart = '';
+      dates.forEach((dt, idx) => {
+        const c = cityForDate[dt];
+        if (!segStart) { segStart = dt; segCity = c; }
+        const nextDate = dates[idx + 1];
+        const nextCity = nextDate ? cityForDate[nextDate] : undefined;
+        if (!nextDate || nextCity !== c) {
+          segments.push({ city: c, start: segStart, end: dt });
+          segStart = ''; segCity = '';
+        }
+      });
+
       const map: Record<string, { lo: number; hi: number; cond: string; icon?: string }> = {};
-      (res.days || []).forEach((d: any) => { map[d.date] = { lo: d.lo, hi: d.hi, cond: d.cond, icon: d.icon }; });
+      for (const seg of segments) {
+        if (!seg.city) continue;
+        const res = await fetchTripWeather(chatId, seg.city, seg.start, seg.end);
+        (res.days || []).forEach((d: any) => { map[d.date] = { lo: d.lo, hi: d.hi, cond: d.cond, icon: d.icon }; });
+      }
       setWeather(map);
     } catch (e: any) {
       setWeatherWarn(String(e?.message || e));

@@ -3,6 +3,9 @@ import { View, Text, TextInput, Image, TouchableOpacity, Alert } from 'react-nat
 import AppButton from '../../components/AppButton';
 import { auth } from '../../firebase/config';
 import { getUserProfile, upsertUserProfile } from '../../firebase/userService';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../../firebase/config';
+import { signOut } from '../../firebase/authService';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadUserAvatar } from '../../firebase/storageService';
 
@@ -58,6 +61,22 @@ export default function ProfileScreen() {
     }
   };
 
+  const onLogout = async () => {
+    try {
+      setLoading(true);
+      const now = Date.now();
+      await Promise.all([
+        setDoc(doc(db, 'presence', uid), { state: 'offline', online: false, lastChanged: now }, { merge: true }),
+        setDoc(doc(db, 'users', uid), { status: 'offline', online: false, lastSeen: now, updatedAt: now }, { merge: true }),
+      ]);
+      await signOut();
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Failed to log out');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={{ flex: 1, padding: 16 }}>
       <Text style={{ fontSize: 22, fontWeight: '600', marginBottom: 16 }}>Profile</Text>
@@ -84,7 +103,10 @@ export default function ProfileScreen() {
         placeholder="Available"
         style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 16 }}
       />
-      <AppButton title={loading ? 'Saving...' : 'Save'} onPress={onSave} disabled={loading} loading={loading} variant="primary" />
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+        <AppButton title={loading ? 'Saving...' : 'Save'} onPress={onSave} disabled={loading} loading={loading} variant="primary" />
+        <AppButton title="Log out" onPress={onLogout} variant="destructive" />
+      </View>
     </View>
   );
 }

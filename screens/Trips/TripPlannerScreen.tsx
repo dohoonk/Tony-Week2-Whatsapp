@@ -329,7 +329,12 @@ export default function TripPlannerScreen() {
       const header = `${title}${start || end ? ` (${start || '—'} → ${end || '—'})` : ''}`;
       const lines: string[] = [];
       itinerary.forEach((d) => {
-        lines.push(`${d.date}`);
+        const wx = weather[d.date];
+        const cityLabel = (d.city || d.resolved?.name || wx?.city || '').trim();
+        const meta = wx
+          ? `${cityLabel ? `${cityLabel}: ` : ''}${wx.lo}°F–${wx.hi}°F, ${wx.cond}`
+          : (cityLabel ? `${cityLabel}` : '');
+        lines.push(meta ? `${d.date} — ${meta}` : `${d.date}`);
         (d.items || []).forEach((it) => lines.push(`- ${it}`));
       });
       const body = lines.length > 0 ? lines.join('\n') : 'No items yet.';

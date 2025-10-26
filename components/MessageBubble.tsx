@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { useThemeColors } from '../lib/theme';
 
 type Sender = { displayName?: string | null; photoURL?: string | null } | null | undefined;
 
@@ -28,16 +29,18 @@ export default function MessageBubble({
   bubbleMax,
   onLongPress,
 }: MessageBubbleProps) {
+  const c = useThemeColors();
+  const isDark = c.surface === '#1F2937';
   const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
 
   if (isAI) {
     return (
       <View style={{ marginBottom: 8, alignSelf: 'flex-start', maxWidth: bubbleMax }}>
-        <Text style={{ fontSize: 11, color: '#6B7280', marginBottom: 2 }}>TripMate AI</Text>
+        <Text style={{ fontSize: 11, color: c.textSubtle, marginBottom: 2 }}>TripMate AI</Text>
         {imageUrl ? (
           <Image source={{ uri: imageUrl }} style={{ width: Math.min(200, bubbleMax), height: 200, borderRadius: 8 }} />
         ) : (
-          <Text style={{ backgroundColor: '#E5F3FF', borderRadius: 8, padding: 8 }}>{text}</Text>
+          <Text style={{ backgroundColor: isDark ? '#0B1220' : '#E5F3FF', color: c.text, borderRadius: 8, padding: 8 }}>{text}</Text>
         )}
       </View>
     );
@@ -46,34 +49,36 @@ export default function MessageBubble({
   if (isMine) {
     return (
       <TouchableOpacity onLongPress={onLongPress} activeOpacity={0.9} style={{ marginBottom: 8, alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
-        {unreadCount > 0 ? (
-          <Text style={{ fontSize: 10, color: '#999' }}>{unreadCount}</Text>
-        ) : null}
-        {timeStr ? <Text style={{ fontSize: 11, color: '#666' }}>{timeStr}</Text> : null}
         {imageUrl ? (
           <Image source={{ uri: imageUrl }} style={{ width: Math.min(200, bubbleMax), height: 200, borderRadius: 8 }} />
         ) : (
-          <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: bubbleMax, flexShrink: 1, color: isLastRead ? '#FF3B30' : undefined }}>{text}</Text>
+          <Text style={{ backgroundColor: c.fill, color: isLastRead ? '#FF3B30' : c.text, borderRadius: 8, padding: 8, maxWidth: bubbleMax, flexShrink: 1 }}>{text}</Text>
         )}
+        <View style={{ width: 46, alignItems: 'flex-end' }}>
+          {unreadCount > 0 ? (
+            <Text style={{ fontSize: 10, lineHeight: 12, color: c.textSubtle }} numberOfLines={1}>{unreadCount}</Text>
+          ) : <Text style={{ fontSize: 10, lineHeight: 12, color: 'transparent' }}>0</Text>}
+          {timeStr ? <Text style={{ fontSize: 10, lineHeight: 12, color: c.textSubtle }} numberOfLines={1}>{timeStr}</Text> : null}
+        </View>
       </TouchableOpacity>
     );
   }
 
   return (
     <TouchableOpacity onLongPress={onLongPress} activeOpacity={0.9} style={{ marginBottom: 8, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
-      <Image source={sender?.photoURL ? { uri: sender.photoURL! } : undefined} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#ddd' }} />
+      <Image source={sender?.photoURL ? { uri: sender.photoURL! } : undefined} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: c.line }} />
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, maxWidth: bubbleMax }}>
         <View style={{ maxWidth: bubbleMax }}>
           {sender?.displayName ? (
-            <Text style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>{sender.displayName}</Text>
+            <Text style={{ fontSize: 11, color: c.textSubtle, marginBottom: 2 }}>{sender.displayName}</Text>
           ) : null}
           {imageUrl ? (
             <Image source={{ uri: imageUrl }} style={{ width: Math.min(200, bubbleMax), height: 200, borderRadius: 8 }} />
           ) : (
-            <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: bubbleMax, flexShrink: 1 }}>{text}</Text>
+            <Text style={{ backgroundColor: c.fill, color: c.text, borderRadius: 8, padding: 8, maxWidth: bubbleMax, flexShrink: 1 }}>{text}</Text>
           )}
         </View>
-        {timeStr ? <Text style={{ fontSize: 11, color: '#666' }}>{timeStr}</Text> : null}
+        {timeStr ? <Text style={{ fontSize: 10, lineHeight: 12, color: c.textSubtle }} numberOfLines={1}>{timeStr}</Text> : null}
       </View>
     </TouchableOpacity>
   );

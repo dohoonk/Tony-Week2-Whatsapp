@@ -33,6 +33,42 @@ export default function MessageBubble({
   const isDark = c.surface === '#1F2937';
   const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
 
+  // Render nicely formatted Weather blocks for AI messages
+  const renderAIWeather = (raw?: string) => {
+    if (!raw) return null;
+    if (!/^\s*Weather for /i.test(raw)) return null;
+    const lines = raw.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) return null;
+    const cityLine = lines[0];
+    const rows: Array<{ date: string; icon?: string; temp: string; cond: string }> = [];
+    for (let i = 1; i < lines.length; ) {
+      const date = lines[i++] || '';
+      const tempLine = lines[i++] || '';
+      const cond = lines[i++] || '';
+      const m = /(https?:\/\/\S+)/.exec(tempLine);
+      const icon = m?.[1];
+      const temp = tempLine.replace(m?.[1] || '', '').trim();
+      if (date) rows.push({ date, icon, temp, cond });
+      // skip possible blank spacer
+      if (i < lines.length && lines[i] === '') i++;
+    }
+    return (
+      <View style={{ backgroundColor: isDark ? '#0B1220' : '#E5F3FF', borderRadius: 8, padding: 8, maxWidth: bubbleMax }}>
+        <Text style={{ color: c.text, fontWeight: '600', marginBottom: 6 }}>{cityLine}</Text>
+        {rows.map((r, idx) => (
+          <View key={idx} style={{ marginBottom: 8 }}>
+            <Text style={{ color: c.text }}>{r.date}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              {r.icon ? <Image source={{ uri: r.icon }} style={{ width: 18, height: 18 }} /> : null}
+              <Text style={{ color: c.text }}>{r.temp}</Text>
+            </View>
+            {r.cond ? <Text style={{ color: c.text }}>{r.cond}</Text> : null}
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   if (isAI) {
     return (
       <View style={{ marginBottom: 8, alignSelf: 'flex-start', maxWidth: bubbleMax }}>
@@ -40,7 +76,9 @@ export default function MessageBubble({
         {imageUrl ? (
           <Image source={{ uri: imageUrl }} style={{ width: Math.min(200, bubbleMax), height: 200, borderRadius: 8 }} />
         ) : (
-          <Text style={{ backgroundColor: isDark ? '#0B1220' : '#E5F3FF', color: c.text, borderRadius: 8, padding: 8 }}>{text}</Text>
+          renderAIWeather(text) ?? (
+            <Text style={{ backgroundColor: isDark ? '#0B1220' : '#E5F3FF', color: c.text, borderRadius: 8, padding: 8 }}>{text}</Text>
+          )
         )}
       </View>
     );

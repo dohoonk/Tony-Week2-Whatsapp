@@ -320,7 +320,14 @@ export default function TripPlannerScreen() {
         // Clamp to current range if available
         const { start, end } = computeStartEndIso();
         const filtered = (start && end) ? gen.filter((d) => d.date >= start && d.date <= end) : gen;
-        setItinerary(filtered.map((d) => ({ date: d.date, items: Array.from(new Set(d.items || [])) })));
+        // Prefill city for each day using precedence: carry-forward → title city (weatherCity)
+        let carry = (itinerary[itinerary.length - 1]?.city || itinerary[itinerary.length - 1]?.resolved?.name || weatherCity || '').trim();
+        const withCity = filtered.map((d) => {
+          const city = (carry || weatherCity || '').trim() || undefined;
+          carry = city || carry;
+          return { date: d.date, city, items: Array.from(new Set(d.items || [])) };
+        });
+        setItinerary(withCity);
       }
     } catch (e: any) {
       Alert.alert('Generate failed', String(e?.message || e));

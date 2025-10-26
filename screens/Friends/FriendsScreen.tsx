@@ -99,9 +99,9 @@ export default function FriendsScreen() {
         const now = Date.now();
         await setDoc(doc(db, 'presence', uid), { state: 'online', online: true, lastChanged: now }, { merge: true });
         await setDoc(doc(db, 'users', uid), { status: 'online', online: true, lastSeen: now, updatedAt: now }, { merge: true });
-        if (__DEV__) console.log('Friends presence smoke-write ok');
+        // dev log removed
       } catch (e) {
-        if (__DEV__) console.log('Friends presence smoke-write error', (e as any)?.message || e);
+        // dev log removed
       }
     };
     writePresence();

@@ -137,9 +137,7 @@ export default function ChatRoomScreen() {
     try {
       (global as any).__currentChatId = isFocused ? chatId : null;
       (global as any).__isChatRoomFocused = !!isFocused;
-      if (__DEV__) {
-        try { console.log('ChatRoomScreen focus state', { chatId, isFocused }); } catch {}
-      }
+      // focus log removed
     } catch {}
     // Set title from chat doc (groupName) if available
     const chatRef = doc(db, 'chats', chatId);
@@ -409,7 +407,7 @@ export default function ChatRoomScreen() {
         (global as any).__currentChatId = null;
         (global as any).__isChatRoomFocused = false;
         if (__DEV__) {
-          try { console.log('ChatRoomScreen unmount; cleared focus globals', { chatId }); } catch {}
+    // unmount log removed
         }
       } catch {}
     };

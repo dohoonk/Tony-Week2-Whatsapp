@@ -86,7 +86,7 @@ Chat (latest last):\n${context}`;
           const out = (resp as any)?.output_text || '';
           let parsed: any = null;
           try { parsed = JSON.parse(out); } catch {}
-          try { console.log('[AI-Debug] AUTO parsed =>', parsed || out); } catch {}
+          // debug removed
           if (parsed && typeof parsed === 'object' && typeof parsed.intent === 'string') {
             const intent = String(parsed.intent).toLowerCase();
             if (intent === 'weather') {
@@ -158,7 +158,7 @@ Prompt: ${String(prompt || '')}
 Chat (latest last):\n${context}`;
             const resp = await client.responses.create({ model: 'gpt-4.1-mini', input: extractor, response_format: { type: 'json_object' } });
             const out = (resp as any)?.output_text || '';
-            try { console.log('[AI-Debug] WX extractor raw', out); } catch {}
+            // debug removed
             let parsed: any = null;
             try { parsed = JSON.parse(out); } catch {}
             if (parsed && typeof parsed === 'object') {
@@ -182,7 +182,7 @@ Chat (latest last):\n${context}`;
         cityPhrase = String((body as any)?.__parsed?.city || cityPhrase || '').trim();
         let parsedStart = String((body as any)?.__parsed?.start || '').trim();
         let parsedEnd = String((body as any)?.__parsed?.end || '').trim();
-        try { console.log('[AI-Debug] Weather inputs (from LLM)', { city: cityPhrase, parsedStart, parsedEnd, prompt }); } catch {}
+        // debug removed
 
         // 1) Allow words between 'weather' and preposition
         const p1 = !cityPhrase ? /weather[\w\s,.-]{0,80}?(?:in|at|for)\s+([A-Za-z][A-Za-z\s-]{1,40})/i.exec(cleaned) : null;
@@ -207,7 +207,7 @@ Chat (latest last):\n${context}`;
         // Reject obvious non-city phrases
         if (/chat|thread|message/i.test(cityPhrase)) cityPhrase = '';
         if (cityPhrase && /[^A-Za-z\s]/.test(cityPhrase)) cityPhrase = '';
-        try { console.log('[AI-Debug] Weather city after regex cleanup', { cityPhrase }); } catch {}
+        // debug removed
 
         const allDates = (parsedStart && parsedEnd) ? [parsedStart, parsedEnd] : toISODates(cleaned).sort();
         const today = new Date();
@@ -227,7 +227,7 @@ Chat (latest last):\n${context}`;
           const e = new Date(s); e.setDate(e.getDate() + 1); // Sunday
           start = toISO(s); end = toISO(e);
         }
-        try { console.log('[AI-Debug] Weather date range', { start, end }); } catch {}
+        // debug removed
 
         // If we have LLM-parsed values, prefer those
         const segCity = String((body as any)?.__parsed?.city || cityPhrase || '').trim();
@@ -239,8 +239,7 @@ Chat (latest last):\n${context}`;
           let resolved: { name: string; lat: number; lon: number; country: string } | null = null;
           try {
             const sUrl = `https://api.weatherapi.com/v1/search.json?key=${wxKey}&q=${encodeURIComponent(segCity)}`;
-            const safeUrl = sUrl.replace(/key=[^&]+/, 'key=***');
-            try { console.log('[AI-Debug] Weather search', { url: safeUrl }); } catch {}
+            // debug removed
             const sResp = await fetch(sUrl);
             if (sResp.ok) {
               const arr: any[] = await sResp.json();
@@ -264,7 +263,7 @@ Chat (latest last):\n${context}`;
               }
             }
           } catch {}
-          try { console.log('[AI-Debug] Weather resolved', resolved); } catch {}
+          // debug removed
 
           if (resolved) {
             const q = `${resolved.lat},${resolved.lon}`;
@@ -273,7 +272,7 @@ Chat (latest last):\n${context}`;
             if (within14) {
               const daysNeeded = Math.min(14, Math.max(1, Math.ceil((Date.parse(segEnd) - Date.now())/(24*3600*1000)) + 1));
               const url = `https://api.weatherapi.com/v1/forecast.json?key=${wxKey}&q=${encodeURIComponent(q)}&days=${daysNeeded}&aqi=no&alerts=no`;
-              try { console.log('[AI-Debug] Weather forecast request', { url: url.replace(/key=[^&]+/, 'key=***'), q, daysNeeded }); } catch {}
+              // debug removed
               const resp = await fetch(url);
               if (resp.ok) {
                 const data: any = await resp.json();
@@ -289,7 +288,7 @@ Chat (latest last):\n${context}`;
               for (let t = Date.parse(segStart); t <= Date.parse(segEnd); t += 24*3600*1000) {
                 const dt = new Date(t).toISOString().slice(0,10);
                 const url = `https://api.weatherapi.com/v1/future.json?key=${wxKey}&q=${encodeURIComponent(q)}&dt=${dt}`;
-                try { console.log('[AI-Debug] Weather future request', { url: url.replace(/key=[^&]+/, 'key=***'), q, dt }); } catch {}
+                // debug removed
                 const resp = await fetch(url);
                 if (resp.ok) {
                   const data: any = await resp.json();
@@ -303,7 +302,7 @@ Chat (latest last):\n${context}`;
             if (results.length > 0) {
               const parts = results.map(r => `${r.date}: ${r.lo}°F–${r.hi}°F, ${r.cond}`);
               weatherSummary = `Weather for ${resolved.name} (${segStart} → ${segEnd})\n` + parts.join('\n');
-              try { console.log('[AI-Debug] Weather results count', results.length); } catch {}
+              // debug removed
             }
           }
         }
@@ -311,7 +310,7 @@ Chat (latest last):\n${context}`;
           weatherSummary = segCity
             ? `Weather summary is unavailable right now for ${cityPhrase}.`
             : 'Weather summary unavailable: specify a city (e.g., “Weather in Denver”).';
-          try { console.log('[AI-Debug] Weather unavailable', { cityPhrase }); } catch {}
+          // debug removed
         }
       } catch {}
     }

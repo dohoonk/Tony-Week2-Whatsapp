@@ -5,10 +5,11 @@ import AppNavigator from './navigation/AppNavigator';
 import { AuthProvider } from './contexts/AuthContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { TripProvider } from './contexts/TripContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import './firebase/config';
 import { onAuthStateChanged } from './firebase/authService';
 import LoginScreen from './screens/Auth/LoginScreen';
-import { View, ActivityIndicator, AppState, Platform, ToastAndroid } from 'react-native';
+import { View, ActivityIndicator, AppState, Platform, ToastAndroid, Text } from 'react-native';
 import OnboardingScreen from './screens/Auth/OnboardingScreen';
 import { getUserProfile } from './firebase/userService';
 import { registerForPushNotificationsAsync } from './lib/notifications';
@@ -25,6 +26,8 @@ export default function App() {
   const navRef = React.useRef<any>(null);
   const currentChatIdRef = React.useRef<string | null>(null);
   const isExpoGo = Constants?.appOwnership === 'expo';
+  const [banner, setBanner] = React.useState<{ title: string; body: string; chatId: string } | null>(null);
+  const bannerTimerRef = React.useRef<any>(null);
   const debugPresence = (message: string) => {
     if (__DEV__) {
       try { console.log(message); } catch {}
@@ -68,7 +71,10 @@ export default function App() {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cid = (global as any).__currentChatId as string | undefined;
+        const focused = !!(global as any).__isChatRoomFocused;
         currentChatIdRef.current = cid ?? null;
+        // Store focus flag alongside id for suppression logic
+        (currentChatIdRef as any).focused = focused;
       } catch {}
     }, 500);
     return () => clearInterval(id);
@@ -76,26 +82,24 @@ export default function App() {
 
   // Log that app mounted (dev only)
   React.useEffect(() => {
-    try { if (__DEV__) console.log('App mounted: dev logging enabled'); } catch {}
+    // dev logs removed
   }, []);
 
   // Debug: show Firebase projectId in Metro logs
   React.useEffect(() => {
-    try {
-      if (__DEV__) console.log('Firebase projectId', (db as any).app?.options?.projectId);
-    } catch {}
+    // dev logs removed
   }, []);
 
   React.useEffect(() => {
     const unsub = onAuthStateChanged(async (u) => {
       setUser(u);
-      try { if (__DEV__) console.log('Auth state changed. uid =', u?.uid || 'null'); } catch {}
+      // auth log removed
       if (u?.uid) {
         try {
           const profile = await getUserProfile(u.uid);
           setNeedsOnboarding(!profile);
         } catch (e) {
-          try { console.log('getUserProfile error:', (e as any)?.message || e); } catch {}
+          // suppressed
         }
         try {
           const token = await registerForPushNotificationsAsync();
@@ -104,7 +108,7 @@ export default function App() {
             await setDoc(userRef, { pushTokens: arrayUnion(token) }, { merge: true });
           }
         } catch (e) {
-          try { console.log('Push token register error:', (e as any)?.message || e); } catch {}
+          // suppressed
         }
         // Presence: mark online and keep heartbeat while app active
         const presenceRef = doc(db, 'presence', u.uid);
@@ -119,7 +123,7 @@ export default function App() {
             ]);
             debugPresence('Presence: online');
           } catch (e: any) {
-            try { console.log('Presence write error (online):', e?.message || e); } catch {}
+            // suppressed
           }
         };
         const setOffline = async () => {
@@ -132,13 +136,13 @@ export default function App() {
             ]);
             debugPresence('Presence: offline');
           } catch (e: any) {
-            try { console.log('Presence write error (offline):', e?.message || e); } catch {}
+            // suppressed
           }
         };
         await setOnline();
         let presenceInterval: any = setInterval(setOnline, 5000);
         const appStateSub = AppState.addEventListener('change', async (state) => {
-          try { if (__DEV__) console.log('AppState change:', state); } catch {}
+          // suppressed
           if (state === 'active') {
             setOnline();
             if (!presenceInterval) presenceInterval = setInterval(setOnline, 5000);
@@ -171,9 +175,13 @@ export default function App() {
         const perChatSubs = new Map<string, () => void>();
         const lastNotified = new Map<string, number>();
         const lastNotifiedId = new Map<string, string>();
-        const unsubChats = onSnapshot(cq, async (chatsSnap) => {
-          const currentIds = new Set<string>();
-          chatsSnap.forEach((c) => currentIds.add(c.id));
+        // suppressed
+        const unsubChats = onSnapshot(
+          cq,
+          async (chatsSnap) => {
+            // suppressed
+            const currentIds = new Set<string>();
+            chatsSnap.forEach((c) => currentIds.add(c.id));
 
           // Add listeners for newly discovered chats
           for (const chatId of Array.from(currentIds)) {
@@ -185,29 +193,32 @@ export default function App() {
               const lm = cd?.lastMessageAt;
               const base = typeof lm === 'number' ? lm : (lm?.toMillis?.() ?? 0);
               if (!lastNotified.has(chatId)) lastNotified.set(chatId, base);
-              try { if (__DEV__) console.log('Notif attach for chat', chatId, 'baseline', base); } catch {}
+              // suppressed
             } catch {}
             const latestRef = query(
               collection(db, 'chats', chatId, 'messages'),
               orderBy('timestamp', 'desc'),
               limit(1)
             );
-            const unsubLatest = onSnapshot(latestRef, async (msgSnap) => {
-              if (msgSnap.empty) return;
-              const doc0 = msgSnap.docs[0];
-              const msgId = doc0.id;
-              const m: any = doc0.data();
-              if (!m?.timestamp) return;
-              // Initialize baseline to 'now' so the next incoming message triggers immediately
-              if (!lastNotified.has(chatId)) lastNotified.set(chatId, 0);
-              const prev = lastNotified.get(chatId) ?? 0;
-              const msgTs = typeof m.timestamp === 'number' ? m.timestamp : (m.timestamp?.toMillis?.() ?? 0);
-              const sameId = lastNotifiedId.get(chatId) === msgId;
-              const willNotify = !sameId && (msgTs > prev) && m.senderId !== u.uid;
-              try { if (__DEV__) console.log('Notif check', { chatId, msgId, msgTs, prev, senderId: m.senderId, willNotify, currentChatId: currentChatIdRef.current }); } catch {}
-              if (!willNotify) return;
-              lastNotified.set(chatId, msgTs);
-              lastNotifiedId.set(chatId, msgId);
+            const unsubLatest = onSnapshot(
+              latestRef,
+              async (msgSnap) => {
+                // suppressed
+                if (msgSnap.empty) return;
+                const doc0 = msgSnap.docs[0];
+                const msgId = doc0.id;
+                const m: any = doc0.data();
+                if (!m?.timestamp) return;
+                // Initialize baseline to 'now' so the next incoming message triggers immediately
+                if (!lastNotified.has(chatId)) lastNotified.set(chatId, 0);
+                const prev = lastNotified.get(chatId) ?? 0;
+                const msgTs = typeof m.timestamp === 'number' ? m.timestamp : (m.timestamp?.toMillis?.() ?? 0);
+                const sameId = lastNotifiedId.get(chatId) === msgId;
+                const willNotify = !sameId && (msgTs > prev) && m.senderId !== u.uid;
+                // suppressed
+                if (!willNotify) return;
+                lastNotified.set(chatId, msgTs);
+                lastNotifiedId.set(chatId, msgId);
 
               // Build title from chat data; special case poll results
               let title = m?.relatedFeature === 'poll_result' ? 'Poll closed' : 'New message';
@@ -220,13 +231,32 @@ export default function App() {
                 const sp = senderSnap.data() as any;
                 title = sp?.displayName || 'New message';
               }
-              // Suppress if I'm currently viewing this chat
-              if (currentChatIdRef.current !== chatId) {
+              // Suppress only if ChatRoom is focused AND it's the same chat
+              const isChatFocused = !!(currentChatIdRef as any).focused;
+              if (!(isChatFocused && currentChatIdRef.current === chatId)) {
                 const body = m.text ? String(m.text) : 'Sent a photo';
                 const { showLocalNotification } = await import('./lib/notifications');
+                // suppressed
                 showLocalNotification(title, body, { chatId });
+                // In Expo Go, also show an in-app banner as a reliable fallback
+                if (isExpoGo) {
+                  try {
+                    setBanner({ title, body, chatId });
+                    if (bannerTimerRef.current) {
+                      clearTimeout(bannerTimerRef.current);
+                      bannerTimerRef.current = null;
+                    }
+                    bannerTimerRef.current = setTimeout(() => setBanner(null), 3000);
+                  } catch {}
+                }
+              } else {
+                // suppressed
               }
-            });
+              },
+              (err) => {
+                // suppressed
+              }
+            );
             perChatSubs.set(chatId, unsubLatest);
           }
 
@@ -238,6 +268,9 @@ export default function App() {
               lastNotified.delete(chatId);
             }
           }
+        },
+        (err) => {
+          // suppressed
         });
 
         // Foreground reminders: schedule local notif at dueAt for my reminders
@@ -267,7 +300,7 @@ export default function App() {
                 trigger: new Date(dueAt) as any,
               });
               scheduledReminderNotifs.set(d.id, notifId);
-              try { if (__DEV__) console.log('Reminder scheduled', d.id, new Date(dueAt).toISOString()); } catch {}
+              // suppressed
             } catch (e) {
               // ignore
             }
@@ -310,7 +343,7 @@ export default function App() {
         // force refresh to ensure a valid token
         // @ts-ignore
         const token = await user.getIdToken?.(true);
-        if (token && __DEV__) console.log('ID_TOKEN', token);
+        // suppressed
       } catch {}
     })();
   }, [user]);
@@ -325,18 +358,26 @@ export default function App() {
 
   return (
     <NavigationContainer ref={navRef}>
+      {banner ? (
+        <View style={{ position: 'absolute', top: 48, left: 12, right: 12, zIndex: 9999, backgroundColor: '#111827', borderRadius: 12, padding: 12, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8 }}>
+          <Text style={{ color: '#fff', fontWeight: '600' }}>{banner.title}</Text>
+          <Text style={{ color: '#D1D5DB' }}>{banner.body}</Text>
+        </View>
+      ) : null}
       {!user ? (
         <LoginScreen />
       ) : needsOnboarding ? (
         <OnboardingScreen onDone={() => setNeedsOnboarding(false)} />
       ) : (
-        <AuthProvider user={user}>
-          <ChatProvider>
-            <TripProvider>
-              <AppNavigator />
-            </TripProvider>
-          </ChatProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider user={user}>
+            <ChatProvider>
+              <TripProvider>
+                <AppNavigator />
+              </TripProvider>
+            </ChatProvider>
+          </AuthProvider>
+        </ThemeProvider>
       )}
     </NavigationContainer>
   );

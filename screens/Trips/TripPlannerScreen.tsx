@@ -401,13 +401,15 @@ export default function TripPlannerScreen() {
         <Text style={{ color: c.textSubtle, marginTop: 4 }}>Members: {memberNames}</Text>
       ) : null}
       {trip?.notes ? <Text style={{ marginTop: 8, color: c.text }}>{trip.notes}</Text> : null}
-      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 16 }}>
-        <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}>
+      <View style={{ marginTop: 16 }}>
+        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
           <AppButton title="Generate" onPress={generateItinerary} variant="primary" size="sm" loading={loadingGen} disabled={loadingGen || loadingWx} />
           <AppButton title="Refresh weather" onPress={loadWeather} variant="outline" size="sm" loading={loadingWx} disabled={loadingWx || loadingGen} />
-          <AppButton title="Add day" onPress={addDay} variant="secondary" size="sm" />
+        </View>
+        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', marginTop: 12 }}>
           <AppButton title="Save" onPress={saveItinerary} variant="primary" size="sm" />
           <AppButton title="Post to chat" onPress={postToChat} variant="outline" size="sm" />
+          <AppButton title="Add day" onPress={addDay} variant="secondary" size="sm" />
         </View>
       </View>
       <View style={{ marginTop: 8 }}>

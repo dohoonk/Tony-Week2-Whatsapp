@@ -117,6 +117,32 @@ export default async function handler(req: any, res: any) {
       // Try to derive a useful title: Destination - startDate - endDate
       const raw: string = String(draft.text || '');
 
+      // Summarize recent chat context to drive extraction, instead of the draft text
+      let summaryText: string | null = null;
+      try {
+        const msgsSnap = await chatRef.collection('messages').orderBy('timestamp', 'desc').limit(200).get();
+        const desc = msgsSnap.docs
+          .map((d: any) => ({ id: d.id, ...(d.data() as any) }))
+          .filter((m: any) => !m.imageUrl && String(m.type || '') !== 'ai_response' && typeof m.text === 'string');
+        const asc = desc.slice().reverse();
+        const joined = asc.map((m: any) => String(m.text)).join('\n');
+        const openaiKey = process.env.OPENAI_API_KEY as string | undefined;
+        if (openaiKey && joined) {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const { OpenAI } = require('openai');
+          const client = new OpenAI({ apiKey: openaiKey });
+          const prompt = `Summarize this chat planning context in <=150 words, focusing only on destination and trip timing cues. Plain text only.\n\n${joined}`;
+          try { console.log('[TRIP] extractorContextPrompt', prompt.slice(0, 2000)); } catch {}
+          const resp = await client.responses.create({ model: 'gpt-4.1-mini', input: prompt });
+          const out: string = String((resp as any)?.output_text || '').trim();
+          summaryText = out || null;
+          try { console.log('[TRIP] extractorContextSummary', summaryText?.slice(0, 500)); } catch {}
+        } else {
+          // Fallback: truncate raw join as pseudo-summary
+          summaryText = joined.slice(-8000);
+        }
+      } catch {}
+
       // LLM extractor for destination and dates (safe fallback to regex below)
       let llmCity: string | undefined;
       let llmStart: string | undefined;
@@ -127,7 +153,8 @@ export default async function handler(req: any, res: any) {
           // eslint-disable-next-line @typescript-eslint/no-var-requires
           const { OpenAI } = require('openai');
           const client = new OpenAI({ apiKey: openaiKey });
-          const extractor = `Extract destination city and a start/end date for a trip.\nReturn ONLY JSON: { "city": string, "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }.\nIf dates are missing, infer from text if possible; otherwise leave empty.\nText:\n${raw}`;
+          const baseText = (summaryText && summaryText.trim().length > 0) ? summaryText : raw;
+          const extractor = `Extract destination city and a start/end date for a trip.\nReturn ONLY JSON: { "city": string, "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }.\nIf dates are missing, infer from the summary if possible; otherwise leave empty.\nSummary:\n${baseText}`;
           try { console.log('[TRIP] extractorPrompt', extractor); } catch {}
           const resp = await client.responses.create({ model: 'gpt-4.1-mini', input: extractor });
           const out: string = String((resp as any)?.output_text || '').trim();

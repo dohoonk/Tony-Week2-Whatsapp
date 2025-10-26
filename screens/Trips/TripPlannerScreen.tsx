@@ -10,12 +10,19 @@ import { db } from '../../firebase/config';
 import { doc, onSnapshot, updateDoc, getDoc, addDoc, collection } from 'firebase/firestore';
 import { fetchItinerary, fetchTripWeather } from '../../lib/ai';
 
+type ItineraryDay = {
+  date: string;
+  city?: string;
+  resolved?: { name: string; lat: number; lon: number };
+  items: string[];
+};
+
 export default function TripPlannerScreen() {
   const c = useThemeColors();
   const route = useRoute<RouteProp<TripsStackParamList, 'TripPlanner'>>();
   const { chatId } = route.params || ({} as any);
   const [trip, setTrip] = useState<any>(null);
-  const [itinerary, setItinerary] = useState<Array<{ date: string; items: string[] }>>([]);
+  const [itinerary, setItinerary] = useState<Array<ItineraryDay>>([]);
   const [userCache, setUserCache] = useState<Record<string, any>>({});
   const [weather, setWeather] = useState<Record<string, { lo: number; hi: number; cond: string; icon?: string; city?: string }>>({});
   const [weatherCity, setWeatherCity] = useState<string>('');
@@ -28,13 +35,21 @@ export default function TripPlannerScreen() {
       const data = { id: snap.id, ...(snap.data() as any) };
       setTrip(data);
       if (Array.isArray((data as any)?.itinerary)) {
-        setItinerary((data as any).itinerary as any);
+        // Accept existing docs with or without city/resolved fields
+        const arr = (data as any).itinerary as any[];
+        const norm: ItineraryDay[] = arr.map((d) => ({
+          date: String(d?.date || ''),
+          city: d?.city || undefined,
+          resolved: d?.resolved ? { name: String(d.resolved.name || ''), lat: Number(d.resolved.lat || 0), lon: Number(d.resolved.lon || 0) } : undefined,
+          items: Array.isArray(d?.items) ? d.items.map((x: any) => String(x)) : [],
+        }));
+        setItinerary(norm);
       } else {
         // initialize from date range if available
         const s = typeof (data?.startDate as any)?.toMillis === 'function' ? (data?.startDate as any).toMillis() : (data?.startDate as any) ?? null;
         const e = typeof (data?.endDate as any)?.toMillis === 'function' ? (data?.endDate as any).toMillis() : (data?.endDate as any) ?? null;
         if (s && e && e >= s) {
-          const days: Array<{ date: string; items: string[] }> = [];
+          const days: Array<ItineraryDay> = [];
           for (let t = s; t <= e; t += 24 * 3600 * 1000) {
             const d = new Date(t).toISOString().slice(0, 10);
             days.push({ date: d, items: [] });

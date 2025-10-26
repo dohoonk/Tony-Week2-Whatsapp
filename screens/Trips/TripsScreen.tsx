@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Alert, TextInput, Modal } from 'react-native';
+import EmptyState from '../../components/EmptyState';
 import { useNavigation } from '@react-navigation/native';
 import { TripsStackParamList } from '../../navigation/TripsStack';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -195,14 +196,14 @@ export default function TripsScreen() {
     <View style={{ flex: 1, padding: 16 }}>
       <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 12 }}>Trips</Text>
       {trips.filter((t) => !(t as any)?.archived).length === 0 ? (
-        <Text style={{ color: '#6B7280', marginBottom: 16 }}>No trips yet. Use Plan trip in chats.</Text>
+        <EmptyState title="No trips yet" subtitle="Use Plan trip in chats to create one" emoji="🧭" />
       ) : (
         <FlatList data={trips} keyExtractor={(t) => t.id} renderItem={renderTrip} style={{ marginBottom: 12 }} />
       )}
 
       <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 12 }}>Reminders</Text>
       {upcoming.length === 0 ? (
-        <Text style={{ color: '#6B7280' }}>No reminders yet. Use AI in chats to create one.</Text>
+        <EmptyState title="No reminders yet" subtitle="Ask @TM to set one in chat" emoji="⏰" />
       ) : (
         <FlatList data={upcoming} keyExtractor={(r) => r.id} renderItem={renderItem} />
       )}

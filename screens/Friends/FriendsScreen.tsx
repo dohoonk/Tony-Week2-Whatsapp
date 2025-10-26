@@ -3,6 +3,7 @@ import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Image
 import AppCard from '../../components/AppCard';
 import AppText from '../../components/AppText';
 import FormField from '../../components/FormField';
+import EmptyState from '../../components/EmptyState';
 import AppButton from '../../components/AppButton';
 import { auth } from '../../firebase/config';
 import { getUserProfile } from '../../firebase/userService';
@@ -239,7 +240,7 @@ export default function FriendsScreen() {
         data={incoming}
         keyExtractor={(item) => item.id}
         extraData={presenceMap}
-        ListEmptyComponent={<Text style={{ color: '#666' }}>No incoming</Text>}
+        ListEmptyComponent={<EmptyState title="No incoming requests" emoji="📨" />}
         renderItem={({ item }) => (
           <AppCard style={{ marginVertical: 6 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -272,7 +273,7 @@ export default function FriendsScreen() {
         data={outgoing}
         keyExtractor={(item) => item.id}
         extraData={presenceMap}
-        ListEmptyComponent={<Text style={{ color: '#666' }}>No outgoing</Text>}
+        ListEmptyComponent={<EmptyState title="No outgoing requests" emoji="📤" />}
         renderItem={({ item }) => (
           <AppCard style={{ marginVertical: 6 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -302,7 +303,7 @@ export default function FriendsScreen() {
         data={friends}
         keyExtractor={(item) => item.id}
         extraData={presenceMap}
-        ListEmptyComponent={<Text style={{ color: '#666' }}>No friends yet</Text>}
+        ListEmptyComponent={<EmptyState title="No friends yet" subtitle="Add by email to start chatting" emoji="👥" />}
         renderItem={({ item }) => (
           <TouchableOpacity
             onPress={async () => {

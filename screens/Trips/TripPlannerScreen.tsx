@@ -145,31 +145,64 @@ export default function TripPlannerScreen() {
       });
 
       // Group consecutive dates by city to minimize API calls
-      type Segment = { city: string; start: string; end: string };
+      type Segment = { city: string; originalDates: string[] };
       const segments: Segment[] = [];
-      let segCity = '';
-      let segStart = '';
-      dates.forEach((dt, idx) => {
+      let currentSegment: Segment | null = null;
+      dates.forEach((dt) => {
         const c = cityForDate[dt];
-        if (!segStart) { segStart = dt; segCity = c; }
-        const nextDate = dates[idx + 1];
-        const nextCity = nextDate ? cityForDate[nextDate] : undefined;
-        if (!nextDate || nextCity !== c) {
-          segments.push({ city: c, start: segStart, end: dt });
-          segStart = ''; segCity = '';
+        if (!currentSegment || currentSegment.city !== c) {
+          if (currentSegment) segments.push(currentSegment);
+          currentSegment = { city: c, originalDates: [dt] };
+        } else {
+          currentSegment.originalDates.push(dt);
         }
       });
+      if (currentSegment) segments.push(currentSegment);
+
+      // Normalize year to avoid historical requests
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const thisYear = today.getFullYear();
+      const normalizeDate = (iso: string): string => {
+        const mm = Number(iso.slice(5,7));
+        const dd = Number(iso.slice(8,10));
+        let d = new Date(thisYear, (mm - 1), dd);
+        d.setHours(0,0,0,0);
+        if (d.getTime() < today.getTime()) {
+          d = new Date(thisYear + 1, (mm - 1), dd);
+          d.setHours(0,0,0,0);
+        }
+        return d.toISOString().slice(0,10);
+      };
 
       const map: Record<string, { lo: number; hi: number; cond: string; icon?: string; city?: string }> = {};
       const resolverCache: Record<string, { name: string; lat: number; lon: number }> = {};
       for (const seg of segments) {
         if (!seg.city) continue;
-        const res = await fetchTripWeather(chatId, seg.city, seg.start, seg.end);
+        const originals = seg.originalDates;
+        const normStart = normalizeDate(originals[0]);
+        const normEnd = normalizeDate(originals[originals.length - 1]);
+        // Build normalized date list to align with originals
+        const normDates: string[] = [];
+        for (let t = Date.parse(normStart); t <= Date.parse(normEnd); t += 24*3600*1000) {
+          normDates.push(new Date(t).toISOString().slice(0,10));
+        }
+        const res = await fetchTripWeather(chatId, seg.city, normStart, normEnd);
         const resolvedCity = String((res as any)?.city || seg.city || '');
         if (res?.resolved?.name) {
           resolverCache[seg.city] = { name: res.resolved.name, lat: res.resolved.lat, lon: res.resolved.lon };
         }
-        (res.days || []).forEach((d: any) => { map[d.date] = { lo: d.lo, hi: d.hi, cond: d.cond, icon: d.icon, city: resolvedCity }; });
+        const byDate: Record<string, any> = {};
+        (res.days || []).forEach((d: any) => { byDate[String(d.date)] = d; });
+        const n = Math.min(originals.length, normDates.length);
+        for (let i = 0; i < n; i++) {
+          const od = originals[i];
+          const nd = normDates[i];
+          const day = byDate[nd];
+          if (day) {
+            map[od] = { lo: day.lo, hi: day.hi, cond: day.cond, icon: day.icon, city: resolvedCity };
+          }
+        }
       }
       setWeather(map);
 

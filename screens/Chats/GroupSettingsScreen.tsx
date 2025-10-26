@@ -6,8 +6,10 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadGroupPhoto } from '../../firebase/storageService';
+import { useThemeColors } from '../../lib/theme';
 
 export default function GroupSettingsScreen() {
+  const c = useThemeColors();
   const route = useRoute<RouteProp<ChatsStackParamList, 'GroupSettings'>>();
   const navigation = useNavigation();
   const { chatId } = route.params;
@@ -56,20 +58,20 @@ export default function GroupSettingsScreen() {
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 12 }}>Group Settings</Text>
+      <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 12, color: c.textStrong }}>Group Settings</Text>
       <TouchableOpacity onPress={pickPhoto} style={{ alignSelf: 'center', marginBottom: 12 }}>
         {localUri || photoURL ? (
           <Image source={{ uri: localUri ?? photoURL! }} style={{ width: 96, height: 96, borderRadius: 48 }} />
         ) : (
-          <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#eee' }} />
+          <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: c.fill }} />
         )}
       </TouchableOpacity>
-      <Text>Name</Text>
+      <Text style={{ color: c.textSubtle }}>Name</Text>
       <TextInput
         value={name}
         onChangeText={setName}
         placeholder="Group name"
-        style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 16 }}
+        style={{ borderWidth: 1, borderColor: c.line, color: c.text, backgroundColor: c.surface, borderRadius: 8, padding: 12, marginBottom: 16 }}
       />
       <Button title={saving ? 'Saving…' : 'Save'} onPress={onSave} disabled={saving} />
     </View>

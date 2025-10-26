@@ -53,6 +53,7 @@ export default function ChatRoomScreen() {
   const [readMap, setReadMap] = useState<Record<string, any>>({});
   const [members, setMembers] = useState<string[]>([]);
   const [chatMeta, setChatMeta] = useState<{ tripId?: string | null; pollId?: string | null; reminderId?: string | null }>({});
+  const [tripTitle, setTripTitle] = useState<string | null>(null);
   const [profileCache, setProfileCache] = useState<Record<string, any>>({});
   const scrolledToUnreadRef = React.useRef<boolean>(false);
   const initialLastReadAtRef = React.useRef<number | null>(null);
@@ -238,6 +239,25 @@ export default function ChatRoomScreen() {
       outboxRef.current = {};
     };
   }, []);
+
+  // Listen for trip title (prefer trips/{chatId}, fallback to trips/{tripId})
+  useEffect(() => {
+    let unsubMain: any;
+    let unsubAlt: any;
+    try {
+      unsubMain = onSnapshot(doc(db, 'trips', chatId), (snap) => {
+        const t = (snap.data() as any)?.title || null;
+        setTripTitle(t);
+      });
+      if (chatMeta?.tripId && chatMeta.tripId !== chatId) {
+        unsubAlt = onSnapshot(doc(db, 'trips', String(chatMeta.tripId)), (snap) => {
+          const t = (snap.data() as any)?.title || null;
+          setTripTitle((prev) => prev ?? t);
+        });
+      }
+    } catch {}
+    return () => { try { unsubMain && unsubMain(); } catch {}; try { unsubAlt && unsubAlt(); } catch {}; };
+  }, [chatId, chatMeta?.tripId]);
 
   const startRetryLoop = () => {
     if (retryTimerRef.current) return;
@@ -786,7 +806,14 @@ export default function ChatRoomScreen() {
         }}
       />
       {chatMeta?.tripId ? (
-        <Text style={{ textAlign: 'center', color: '#2563EB', marginBottom: 4 }}>Trip linked · {String(chatMeta.tripId).slice(0, 8)}…</Text>
+        <TouchableOpacity
+          onPress={() => (navigation as any).navigate('Trips', { screen: 'TripPlanner', params: { chatId } })}
+          activeOpacity={0.7}
+        >
+          <Text style={{ textAlign: 'center', color: '#2563EB', marginBottom: 4 }}>
+            {tripTitle ? `Trip linked · ${tripTitle}` : `Trip linked · ${String(chatMeta.tripId).slice(0, 8)}…`}
+          </Text>
+        </TouchableOpacity>
       ) : null}
       {typingNames ? (
         <AppText variant="meta" style={{ textAlign: 'center', color: '#888', marginBottom: 4 }}>{typingNames}</AppText>

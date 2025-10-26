@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Alert, TextInput, Modal } from 'react-native';
 import { useThemeColors } from '../../lib/theme';
 import EmptyState from '../../components/EmptyState';
+import AppButton from '../../components/AppButton';
 import { useNavigation } from '@react-navigation/native';
 import { TripsStackParamList } from '../../navigation/TripsStack';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -155,11 +156,9 @@ export default function TripsScreen() {
         ) : null}
         {item.notes ? <Text style={{ color: c.text, marginTop: 4 }} numberOfLines={3}>{item.notes}</Text> : null}
         <Text style={{ color: c.textSubtle, marginTop: 6 }}>Members: {names || (item.members || []).length}</Text>
-        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-          <TouchableOpacity onPress={() => nav.navigate('TripPlanner', { chatId: item.chatId })}>
-            <Text style={{ color: c.primary }}>Open planner</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => {
+        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+          <AppButton title="Open planner" variant="outline" size="sm" onPress={() => nav.navigate('TripPlanner', { chatId: item.chatId })} />
+          <AppButton title="Edit" variant="secondary" size="sm" onPress={() => {
             setEditTrip(item);
             setEditTitle(item.title || '');
             setEditNotes(item.notes || '');
@@ -167,17 +166,13 @@ export default function TripsScreen() {
             const eTs = endTs ? new Date(endTs) : null;
             setEditStart(sTs ? `${String(sTs.getMonth() + 1).padStart(2,'0')}/${String(sTs.getDate()).padStart(2,'0')}/${sTs.getFullYear()}` : '');
             setEditEnd(eTs ? `${String(eTs.getMonth() + 1).padStart(2,'0')}/${String(eTs.getDate()).padStart(2,'0')}/${eTs.getFullYear()}` : '');
-          }}>
-            <Text style={{ color: c.primary }}>Edit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={async () => {
+          }} />
+          <AppButton title="Archive" variant="ghost" size="sm" onPress={async () => {
             try {
               await updateDoc(doc(db, 'trips', item.id), { archived: true, updatedAt: Date.now(), updatedBy: auth.currentUser?.uid || 'system' } as any);
             } catch {}
-          }}>
-            <Text style={{ color: c.textSubtle }}>Archive</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => {
+          }} />
+          <AppButton title="Delete" variant="destructive" size="sm" onPress={() => {
             Alert.alert(
               'Delete trip?',
               'This will remove the trip for everyone in the chat. This action cannot be undone.',
@@ -186,9 +181,7 @@ export default function TripsScreen() {
                 { text: 'Delete', style: 'destructive', onPress: async () => { try { await deleteDoc(doc(db, 'trips', item.id)); } catch {} } },
               ]
             );
-          }}>
-            <Text style={{ color: c.error }}>Delete</Text>
-          </TouchableOpacity>
+          }} />
         </View>
       </View>
     );
@@ -209,15 +202,13 @@ export default function TripsScreen() {
           </Text>
         ) : null}
         <Text style={{ color: c.textSubtle, marginTop: 6 }}>Members: {names || (item.members || []).length}</Text>
-        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-          <TouchableOpacity onPress={async () => {
+        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+          <AppButton title="Restore" variant="outline" size="sm" onPress={async () => {
             try {
               await updateDoc(doc(db, 'trips', item.id), { archived: false, updatedAt: Date.now(), updatedBy: auth.currentUser?.uid || 'system' } as any);
             } catch {}
-          }}>
-            <Text style={{ color: c.primary }}>Restore</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => {
+          }} />
+          <AppButton title="Delete" variant="destructive" size="sm" onPress={() => {
             Alert.alert(
               'Delete archived trip?',
               'This will permanently remove the trip for everyone in the chat.',
@@ -226,9 +217,7 @@ export default function TripsScreen() {
                 { text: 'Delete', style: 'destructive', onPress: async () => { try { await deleteDoc(doc(db, 'trips', item.id)); } catch {} } },
               ]
             );
-          }}>
-            <Text style={{ color: c.error }}>Delete</Text>
-          </TouchableOpacity>
+          }} />
         </View>
       </View>
     );

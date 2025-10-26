@@ -119,6 +119,8 @@ npx expo start --dev-client
 
 ### Trips, Polls, Reminders
 - Trips: single `trips/{chatId}` doc with versioning; itinerary editing and posting to chat.
+- Itinerary editor: per‑day City field; city precedence is day.city → carry‑forward → title city. Weather requests are year‑normalized (no historical fetches). Server returns resolved city with lat/lon and the client writes it to each day as `resolved`.
+- See itinerary model and flow in `../itinerary.md`.
 - Polls: one vote per user, revotes allowed; auto-close and single summary message.
 - Reminders: scheduled → notified → completed/expired, with foreground notifications to members.
 

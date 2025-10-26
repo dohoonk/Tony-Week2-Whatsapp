@@ -143,6 +143,10 @@ export default function TripPlannerScreen() {
         cityForDate[dt] = chosen;
         carryCity = chosen;
       });
+      if (__DEV__) {
+        console.log('[TripPlannerWeather] dates', dates);
+        console.log('[TripPlannerWeather] cityForDate', cityForDate);
+      }
 
       // Group consecutive dates by city to minimize API calls
       type Segment = { city: string; originalDates: string[] };
@@ -158,6 +162,9 @@ export default function TripPlannerScreen() {
         }
       });
       if (currentSegment) segments.push(currentSegment);
+      if (__DEV__) {
+        console.log('[TripPlannerWeather] segments', segments);
+      }
 
       // Normalize year to avoid historical requests
       const today = new Date();
@@ -188,6 +195,9 @@ export default function TripPlannerScreen() {
           normDates.push(new Date(t).toISOString().slice(0,10));
         }
         const res = await fetchTripWeather(chatId, seg.city, normStart, normEnd);
+        if (__DEV__) {
+          console.log('[TripPlannerWeather] fetch', { city: seg.city, normStart, normEnd, originals: seg.originalDates });
+        }
         const resolvedCity = String((res as any)?.city || seg.city || '');
         if (res?.resolved?.name) {
           resolverCache[seg.city] = { name: res.resolved.name, lat: res.resolved.lat, lon: res.resolved.lon };
@@ -214,6 +224,9 @@ export default function TripPlannerScreen() {
       });
       setItinerary(next);
       saveItineraryQuick(next);
+      if (__DEV__) {
+        console.log('[TripPlannerWeather] resolverCache', resolverCache);
+      }
     } catch (e: any) {
       setWeatherWarn(String(e?.message || e));
     }

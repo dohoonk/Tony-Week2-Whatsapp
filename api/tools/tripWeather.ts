@@ -62,6 +62,9 @@ export default async function handler(req: any, res: any) {
     if (within14) {
       const daysNeeded = Math.min(14, Math.max(1, Math.ceil((endMs - Date.now())/(24*3600*1000)) + 1));
       const url = `https://api.weatherapi.com/v1/forecast.json?key=${wxKey}&q=${encodeURIComponent(q)}&days=${daysNeeded}&aqi=no&alerts=no`;
+      if (process.env.NODE_ENV !== 'production') {
+        try { console.log('[tripWeather] forecast', { q: q.replace(/\d/g,'*'), daysNeeded }); } catch {}
+      }
       const resp = await fetch(url);
       if (resp.ok) {
         const data: any = await resp.json();
@@ -79,6 +82,9 @@ export default async function handler(req: any, res: any) {
       for (let t = startMs; t <= endMs; t += 24*3600*1000) {
         const dt = new Date(t).toISOString().slice(0,10);
         const url = `https://api.weatherapi.com/v1/future.json?key=${wxKey}&q=${encodeURIComponent(q)}&dt=${dt}`;
+        if (process.env.NODE_ENV !== 'production') {
+          try { console.log('[tripWeather] future', { q: q.replace(/\d/g,'*'), dt }); } catch {}
+        }
         const resp = await fetch(url);
         if (resp.ok) {
           const data: any = await resp.json();

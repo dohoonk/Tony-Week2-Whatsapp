@@ -27,6 +27,8 @@ export default function TripPlannerScreen() {
   const [weather, setWeather] = useState<Record<string, { lo: number; hi: number; cond: string; icon?: string; city?: string }>>({});
   const [weatherCity, setWeatherCity] = useState<string>('');
   const [weatherWarn, setWeatherWarn] = useState<string>('');
+  const [loadingGen, setLoadingGen] = useState<boolean>(false);
+  const [loadingWx, setLoadingWx] = useState<boolean>(false);
 
   useEffect(() => {
     if (!chatId) return;
@@ -112,6 +114,7 @@ export default function TripPlannerScreen() {
   const loadWeather = async () => {
     try {
       setWeatherWarn('');
+      setLoadingWx(true);
       const { start, end } = computeStartEndIso();
       if (!chatId || !start || !end) {
         setWeatherWarn('Missing dates');
@@ -229,6 +232,8 @@ export default function TripPlannerScreen() {
       }
     } catch (e: any) {
       setWeatherWarn(String(e?.message || e));
+    } finally {
+      setLoadingWx(false);
     }
   };
 
@@ -309,6 +314,7 @@ export default function TripPlannerScreen() {
   const generateItinerary = async () => {
     if (!chatId) return;
     try {
+      setLoadingGen(true);
       const gen = await fetchItinerary(chatId);
       if (Array.isArray(gen) && gen.length > 0) {
         // Clamp to current range if available
@@ -318,6 +324,8 @@ export default function TripPlannerScreen() {
       }
     } catch (e: any) {
       Alert.alert('Generate failed', String(e?.message || e));
+    } finally {
+      setLoadingGen(false);
     }
   };
 
@@ -387,8 +395,8 @@ export default function TripPlannerScreen() {
       {trip?.notes ? <Text style={{ marginTop: 8, color: c.text }}>{trip.notes}</Text> : null}
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 16 }}>
         <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}>
-          <AppButton title="Generate" onPress={generateItinerary} variant="primary" size="sm" />
-          <AppButton title="Refresh weather" onPress={loadWeather} variant="outline" size="sm" />
+          <AppButton title="Generate" onPress={generateItinerary} variant="primary" size="sm" loading={loadingGen} disabled={loadingGen || loadingWx} />
+          <AppButton title="Refresh weather" onPress={loadWeather} variant="outline" size="sm" loading={loadingWx} disabled={loadingWx || loadingGen} />
           <AppButton title="Add day" onPress={addDay} variant="secondary" size="sm" />
           <AppButton title="Save" onPress={saveItinerary} variant="primary" size="sm" />
           <AppButton title="Post to chat" onPress={postToChat} variant="outline" size="sm" />

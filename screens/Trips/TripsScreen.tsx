@@ -147,7 +147,7 @@ export default function TripsScreen() {
         ) : null}
         {item.notes ? <Text style={{ color: c.text, marginTop: 4 }} numberOfLines={3}>{item.notes}</Text> : null}
         <Text style={{ color: c.textSubtle, marginTop: 6 }}>Members: {names || (item.members || []).length}</Text>
-        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'nowrap' }}>
           <AppButton title="Trip Planner" variant="outline" size="sm" onPress={() => nav.navigate('TripPlanner', { chatId: item.chatId })} />
           <AppButton title="Edit" variant="outline" size="sm" onPress={() => {
             setEditTrip(item);

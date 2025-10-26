@@ -260,10 +260,36 @@ Chat (latest last):\n${context}`;
 
         // If we have LLM-parsed values, prefer those
         const segCity = String((body as any)?.__parsed?.city || cityPhrase || '').trim();
-        const segStart = String((body as any)?.__parsed?.start || start || '').trim();
-        const segEnd = String((body as any)?.__parsed?.end || end || segStart || '').trim();
+        let segStart = String((body as any)?.__parsed?.start || start || '').trim();
+        let segEnd = String((body as any)?.__parsed?.end || end || segStart || '').trim();
         const pathUsed = (body as any)?.__parsed?.city ? 'llm' : (cityPhrase ? 'regex' : 'none');
         try { console.log('[WX] path', { pathUsed, segCity, segStart, segEnd }); } catch {}
+
+        // Normalize years: never request historical weather; ensure dates are >= this year
+        try {
+          const todayIso = new Date().toISOString().slice(0,10);
+          const currentYear = new Date().getFullYear();
+          const toIso = (y: number, m: number, d: number) => {
+            const mm = String(m).padStart(2, '0');
+            const dd = String(d).padStart(2, '0');
+            return `${y}-${mm}-${dd}`;
+          };
+          const norm = (s: string) => {
+            const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+            if (!m) return s; // leave unknown formats untouched
+            let y = parseInt(m[1], 10);
+            const mo = parseInt(m[2], 10);
+            const da = parseInt(m[3], 10);
+            if (y < currentYear) y = currentYear;
+            let iso = toIso(y, mo, da);
+            if (iso < todayIso) iso = toIso(y + 1, mo, da);
+            return iso;
+          };
+          if (/^\d{4}-\d{2}-\d{2}$/.test(segStart)) segStart = norm(segStart);
+          if (/^\d{4}-\d{2}-\d{2}$/.test(segEnd)) segEnd = norm(segEnd);
+          if (segEnd < segStart) segEnd = segStart;
+          try { console.log('[WX] normalizedDates', { segStart, segEnd }); } catch {}
+        } catch {}
 
         if (wxKey && segCity) {
           // Validate/resolve city via WeatherAPI search, use lat,lon for certainty

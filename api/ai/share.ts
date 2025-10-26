@@ -116,12 +116,38 @@ export default async function handler(req: any, res: any) {
       // Upsert single active trip per chat: trips/{chatId}
       // Try to derive a useful title: Destination - startDate - endDate
       const raw: string = String(draft.text || '');
+
+      // LLM extractor for destination and dates (safe fallback to regex below)
+      let llmCity: string | undefined;
+      let llmStart: string | undefined;
+      let llmEnd: string | undefined;
+      try {
+        const openaiKey = process.env.OPENAI_API_KEY as string | undefined;
+        if (openaiKey) {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const { OpenAI } = require('openai');
+          const client = new OpenAI({ apiKey: openaiKey });
+          const extractor = `Extract destination city and a start/end date for a trip.\nReturn ONLY JSON: { "city": string, "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }.\nIf dates are missing, infer from text if possible; otherwise leave empty.\nText:\n${raw}`;
+          try { console.log('[TRIP] extractorPrompt', extractor); } catch {}
+          const resp = await client.responses.create({ model: 'gpt-4.1-mini', input: extractor });
+          const out: string = String((resp as any)?.output_text || '').trim();
+          try { console.log('[TRIP] extractorRaw', out); } catch {}
+          try {
+            const parsed = JSON.parse(out);
+            llmCity = typeof parsed?.city === 'string' ? parsed.city.trim() : undefined;
+            llmStart = typeof parsed?.start === 'string' ? parsed.start.trim() : undefined;
+            llmEnd = typeof parsed?.end === 'string' ? parsed.end.trim() : undefined;
+            try { console.log('[TRIP] extractorParsed', { llmCity, llmStart, llmEnd }); } catch {}
+          } catch {}
+        }
+      } catch {}
+
       const months = '(January|February|March|April|May|June|July|August|September|October|November|December)';
       const isoDate = /(\d{4}-\d{2}-\d{2})/g;
       const slashDate = /(\d{1,2}\/\d{1,2}\/\d{2,4})/g;
       const monthDate = new RegExp(`${months}\\s+\\d{1,2}(?:,\\s*\\d{4})?`, 'gi');
       const destinationMatch = raw.match(/(?:Destination\s*:\s*|to\s+|in\s+)([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3})/);
-      const dest = destinationMatch?.[1] || 'Trip';
+      const dest = (llmCity && llmCity.length >= 2 ? llmCity : (destinationMatch?.[1] || 'Trip')) as string;
       const dates: string[] = [];
       const collect = (re: RegExp) => {
         let m: RegExpExecArray | null;
@@ -129,8 +155,8 @@ export default async function handler(req: any, res: any) {
         while ((m = r.exec(raw)) !== null) dates.push(m[1]);
       };
       collect(isoDate); collect(slashDate); collect(monthDate);
-      const startStr = dates[0] || 'TBD';
-      const endStr = dates[1] || (dates[0] ? dates[0] : 'TBD');
+      const startStr = (llmStart || dates[0] || 'TBD') as string;
+      const endStr = (llmEnd || (dates[1] || (dates[0] ? dates[0] : 'TBD'))) as string;
       // Title includes destination and date range
       const title = `${dest} - ${startStr} - ${endStr}`;
 

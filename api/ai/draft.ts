@@ -164,10 +164,18 @@ Chat (latest last):\n${context}`;
             const extractor = `Extract a single best city and a concrete start/end date for a weather query.\nReturn ONLY JSON (no markdown): { \"city\": string, \"start\": \"YYYY-MM-DD\", \"end\": \"YYYY-MM-DD\" }\nRules: City must be a real city/town (avoid airports); title-case; min 3 chars; reject stopwords like \"we\".\nResolve phrases like \"next week\"/\"this weekend\" to ISO dates.\nUser Prompt: ${String(prompt || '')}\nChat Summary:\n${summaryForExtractor || context}`;
             try { console.log('[WX] extractorPrompt', extractor); } catch {}
             const resp = await client.responses.create({ model: 'gpt-4.1-mini', input: extractor, response_format: { type: 'json_object' } });
-            const out = (resp as any)?.output_text || '';
-            // debug removed
+            const anyResp: any = resp;
+            const outText: string = String(anyResp?.output_text ?? '');
             let parsed: any = null;
-            try { parsed = JSON.parse(out); } catch {}
+            try {
+              const items = anyResp?.output?.[0]?.content ?? [];
+              const jsonNode = items.find((c: any) => c?.type === 'json');
+              parsed = jsonNode?.json ?? null;
+            } catch {}
+            if (!parsed) {
+              try { parsed = JSON.parse(outText); } catch {}
+            }
+            try { console.log('[WX] extractorRaw', outText); } catch {}
             try { console.log('[WX] extractorParsed', parsed); } catch {}
             if (parsed && typeof parsed === 'object') {
               const pCity = String(parsed.city || '').trim();

@@ -160,7 +160,13 @@ export default async function handler(req: any, res: any) {
           const out: string = String((resp as any)?.output_text || '').trim();
           try { console.log('[TRIP] extractorRaw', out); } catch {}
           try {
-            const parsed = JSON.parse(out);
+            let jsonText = out;
+            // Strip markdown fences if present and extract first JSON object
+            const fence = /```[a-zA-Z]*\n([\s\S]*?)```/m.exec(out);
+            if (fence && fence[1]) jsonText = fence[1].trim();
+            const brace = /\{[\s\S]*\}/.exec(jsonText);
+            if (brace && brace[0]) jsonText = brace[0];
+            const parsed = JSON.parse(jsonText);
             llmCity = typeof parsed?.city === 'string' ? parsed.city.trim() : undefined;
             llmStart = typeof parsed?.start === 'string' ? parsed.start.trim() : undefined;
             llmEnd = typeof parsed?.end === 'string' ? parsed.end.trim() : undefined;
@@ -173,13 +179,14 @@ export default async function handler(req: any, res: any) {
       const isoDate = /(\d{4}-\d{2}-\d{2})/g;
       const slashDate = /(\d{1,2}\/\d{1,2}\/\d{2,4})/g;
       const monthDate = new RegExp(`${months}\\s+\\d{1,2}(?:,\\s*\\d{4})?`, 'gi');
-      const destinationMatch = raw.match(/(?:Destination\s*:\s*|to\s+|in\s+)([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3})/);
+      const baseForRegex = (summaryText && summaryText.trim().length > 0) ? summaryText : raw;
+      const destinationMatch = baseForRegex.match(/(?:Destination\s*:\s*|to\s+|in\s+)([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3})/);
       const dest = (llmCity && llmCity.length >= 2 ? llmCity : (destinationMatch?.[1] || 'Trip')) as string;
       const dates: string[] = [];
       const collect = (re: RegExp) => {
         let m: RegExpExecArray | null;
         const r = new RegExp(re.source, re.flags);
-        while ((m = r.exec(raw)) !== null) dates.push(m[1]);
+        while ((m = r.exec(baseForRegex)) !== null) dates.push(m[1]);
       };
       collect(isoDate); collect(slashDate); collect(monthDate);
       // Prefer extractor values; fallback to regex only if missing

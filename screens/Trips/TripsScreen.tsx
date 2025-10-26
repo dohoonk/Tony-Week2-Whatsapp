@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, Alert, TextInput, Modal } from 
 import { useThemeColors } from '../../lib/theme';
 import EmptyState from '../../components/EmptyState';
 import AppButton from '../../components/AppButton';
+import AppCard from '../../components/AppCard';
 import { useNavigation } from '@react-navigation/native';
 import { TripsStackParamList } from '../../navigation/TripsStack';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -115,7 +116,7 @@ export default function TripsScreen() {
     const shifted = baseTs !== null ? baseTs + (localShift[item.id] ?? 0) : null;
     const tsStr = shifted ? new Date(shifted).toLocaleString() : 'No time set';
     return (
-      <View style={{ padding: 12, borderRadius: 12, backgroundColor: c.fill, marginBottom: 12 }}>
+      <AppCard style={{ marginBottom: 12 }}>
         <Text style={{ fontWeight: '600', color: c.textStrong }}>{item.title || 'Reminder'}</Text>
         <Text style={{ color: c.textSubtle, marginTop: 4 }}>When: {tsStr}</Text>
         <Text style={{ color: c.textSubtle, marginTop: 2 }}>Status: {item.status || 'scheduled'}</Text>
@@ -126,7 +127,7 @@ export default function TripsScreen() {
           <AppButton title="Save" variant="primary" size="sm" onPress={() => save(item)} />
           <AppButton title="Cancel" variant="destructive" size="sm" onPress={() => cancel(item)} />
         </View>
-      </View>
+      </AppCard>
     );
   };
 
@@ -137,7 +138,7 @@ export default function TripsScreen() {
     const startTs = typeof (item.startDate as any)?.toMillis === 'function' ? (item.startDate as any).toMillis() : (item.startDate as any) ?? null;
     const endTs = typeof (item.endDate as any)?.toMillis === 'function' ? (item.endDate as any).toMillis() : (item.endDate as any) ?? null;
     return (
-      <View style={{ padding: 12, borderRadius: 12, backgroundColor: c.fill, marginBottom: 12 }}>
+      <AppCard style={{ marginBottom: 12 }}>
         <Text style={{ fontWeight: '600', color: c.textStrong }}>{(item.title || 'Trip Plan') + (item?.id ? ` (v${(item as any).version ?? 1})` : '')}</Text>
         {startTs || endTs ? (
           <Text style={{ color: c.textSubtle, marginTop: 4 }}>
@@ -173,7 +174,7 @@ export default function TripsScreen() {
             );
           }} />
         </View>
-      </View>
+      </AppCard>
     );
   };
 
@@ -184,7 +185,7 @@ export default function TripsScreen() {
     const startTs = typeof (item.startDate as any)?.toMillis === 'function' ? (item.startDate as any).toMillis() : (item.startDate as any) ?? null;
     const endTs = typeof (item.endDate as any)?.toMillis === 'function' ? (item.endDate as any).toMillis() : (item.endDate as any) ?? null;
     return (
-      <View style={{ padding: 12, borderRadius: 12, backgroundColor: c.fill, marginBottom: 12, opacity: 0.85 }}>
+      <AppCard style={{ marginBottom: 12 }}>
         <Text style={{ fontWeight: '600', color: c.textStrong }}>{(item.title || 'Trip Plan') + (item?.id ? ` (v${(item as any).version ?? 1})` : '')}</Text>
         {startTs || endTs ? (
           <Text style={{ color: c.textSubtle, marginTop: 4 }}>
@@ -209,7 +210,7 @@ export default function TripsScreen() {
             );
           }} />
         </View>
-      </View>
+      </AppCard>
     );
   };
 

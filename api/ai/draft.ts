@@ -176,6 +176,10 @@ Chat (latest last):\n${context}`;
               try { parsed = JSON.parse(outText); } catch {}
             }
             try { console.log('[WX] extractorRaw', outText); } catch {}
+            try {
+              const responseForLog = outText && outText.trim().length > 0 ? outText : (parsed ? JSON.stringify(parsed) : '');
+              console.log('[WX] extractorResponse', responseForLog);
+            } catch {}
             try { console.log('[WX] extractorParsed', parsed); } catch {}
             if (parsed && typeof parsed === 'object') {
               const pCity = String(parsed.city || '').trim();

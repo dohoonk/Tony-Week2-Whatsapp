@@ -153,12 +153,15 @@ Chat (latest last):\n${context}`;
             const { OpenAI } = require('openai');
             const client = new OpenAI({ apiKey: openaiKeyWx });
             const context = messages.map((m: any) => `- ${m.senderId === 'ai' ? 'AI' : m.senderId}: ${m.text || ''}`).join('\n');
-            const extractor = `Extract a single best city and a concrete start/end date for a weather query.
-Return ONLY JSON (no markdown): { "city": string, "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }
-Rules: City must be a real city/town (avoid airports); title-case; min 3 chars; reject stopwords like "we".
-Resolve phrases like "next week"/"this weekend" to ISO dates.
-Prompt: ${String(prompt || '')}
-Chat (latest last):\n${context}`;
+            // Build a compact summary for extraction (weather-focused)
+            let summaryForExtractor = '';
+            try {
+              const sumPrompt = `Summarize the group chat into a compact digest focused ONLY on cities/locations and explicit or relative dates relevant to travel/weather. Keep it under 12 short lines.\n\nChat (latest last):\n${context}`;
+              const sumResp = await client.responses.create({ model: 'gpt-4.1-mini', input: sumPrompt });
+              summaryForExtractor = String((sumResp as any)?.output_text || '').trim();
+            } catch {}
+            try { console.log('[WX] extractorSummary', summaryForExtractor); } catch {}
+            const extractor = `Extract a single best city and a concrete start/end date for a weather query.\nReturn ONLY JSON (no markdown): { \"city\": string, \"start\": \"YYYY-MM-DD\", \"end\": \"YYYY-MM-DD\" }\nRules: City must be a real city/town (avoid airports); title-case; min 3 chars; reject stopwords like \"we\".\nResolve phrases like \"next week\"/\"this weekend\" to ISO dates.\nUser Prompt: ${String(prompt || '')}\nChat Summary:\n${summaryForExtractor || context}`;
             try { console.log('[WX] extractorPrompt', extractor); } catch {}
             const resp = await client.responses.create({ model: 'gpt-4.1-mini', input: extractor, response_format: { type: 'json_object' } });
             const out = (resp as any)?.output_text || '';

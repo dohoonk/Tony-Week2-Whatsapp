@@ -153,7 +153,7 @@ Chat (latest last):\n${context}`;
             const { OpenAI } = require('openai');
             const client = new OpenAI({ apiKey: openaiKeyWx });
             const context = messages.map((m: any) => `- ${m.senderId === 'ai' ? 'AI' : m.senderId}: ${m.text || ''}`).join('\n');
-            // Build a compact summary for extraction (weather-focused)
+            // Summarize chat first for focused extraction
             let summaryForExtractor = '';
             try {
               const sumPrompt = `Summarize the group chat into a compact digest focused ONLY on cities/locations and explicit or relative dates relevant to travel/weather. Keep it under 12 short lines.\n\nChat (latest last):\n${context}`;
@@ -163,8 +163,13 @@ Chat (latest last):\n${context}`;
             try { console.log('[WX] extractorSummary', summaryForExtractor); } catch {}
             const extractor = `Extract a single best city and a concrete start/end date for a weather query.\nReturn ONLY JSON (no markdown): { \"city\": string, \"start\": \"YYYY-MM-DD\", \"end\": \"YYYY-MM-DD\" }\nRules: City must be a real city/town (avoid airports); title-case; min 3 chars; reject stopwords like \"we\".\nResolve phrases like \"next week\"/\"this weekend\" to ISO dates.\nUser Prompt: ${String(prompt || '')}\nChat Summary:\n${summaryForExtractor || context}`;
             try { console.log('[WX] extractorPrompt', extractor); } catch {}
-            const resp = await client.responses.create({ model: 'gpt-4.1-mini', input: extractor, response_format: { type: 'json_object' } });
-            const anyResp: any = resp;
+            let anyResp: any = null;
+            try {
+              console.log('[WX] extractorKeyPresent', !!openaiKeyWx);
+              anyResp = await client.responses.create({ model: 'gpt-4.1-mini', input: extractor, response_format: { type: 'json_object' } });
+            } catch (e: any) {
+              try { console.log('[WX] extractorError', e?.message || e); } catch {}
+            }
             const outText: string = String(anyResp?.output_text ?? '');
             let parsed: any = null;
             try {
@@ -181,6 +186,9 @@ Chat (latest last):\n${context}`;
               console.log('[WX] extractorResponse', responseForLog);
             } catch {}
             try { console.log('[WX] extractorParsed', parsed); } catch {}
+            if (!parsed) {
+              try { console.log('[WX] extractorMissingParsed'); } catch {}
+            }
             if (parsed && typeof parsed === 'object') {
               const pCity = String(parsed.city || '').trim();
               const pStart = String(parsed.start || '').trim();

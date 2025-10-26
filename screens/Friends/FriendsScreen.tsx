@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Image } from 'react-native';
+import { useThemeColors } from '../../lib/theme';
 import AppCard from '../../components/AppCard';
 import AppText from '../../components/AppText';
 import FormField from '../../components/FormField';
@@ -15,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { openDirectChat } from '../../firebase/chatService';
 
 export default function FriendsScreen() {
+  const c = useThemeColors();
   const [emailToAdd, setEmailToAdd] = useState('');
   const [incoming, setIncoming] = useState<any[]>([]);
   const [outgoing, setOutgoing] = useState<any[]>([]);
@@ -235,7 +237,7 @@ export default function FriendsScreen() {
         </View>
       </View>
 
-      <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 8 }}>Incoming Requests</Text>
+      <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 8, color: c.textStrong }}>Incoming Requests</Text>
       <FlatList
         data={incoming}
         keyExtractor={(item) => item.id}
@@ -247,15 +249,15 @@ export default function FriendsScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <Image
                   source={item?.profile?.photoURL ? { uri: item.profile.photoURL } : undefined}
-                  style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#ddd' }}
+                  style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c.line }}
                 />
                 <View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <AppText>{item?.profile?.displayName ?? item.fromUid}</AppText>
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.fromUid] ? '#34C759' : '#D1D5DB' }} />
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.fromUid] ? '#34C759' : c.line }} />
                   </View>
                   {item?.profile?.email ? (
-                    <AppText variant="meta" style={{ color: '#666' }}>{item.profile.email}</AppText>
+                    <AppText variant="meta" style={{ color: c.textSubtle }}>{item.profile.email}</AppText>
                   ) : null}
                 </View>
               </View>
@@ -268,7 +270,7 @@ export default function FriendsScreen() {
         )}
       />
 
-      <Text style={{ fontSize: 18, fontWeight: '600', marginVertical: 8 }}>Outgoing Requests</Text>
+      <Text style={{ fontSize: 18, fontWeight: '600', marginVertical: 8, color: c.textStrong }}>Outgoing Requests</Text>
       <FlatList
         data={outgoing}
         keyExtractor={(item) => item.id}
@@ -280,15 +282,15 @@ export default function FriendsScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <Image
                   source={item?.profile?.photoURL ? { uri: item.profile.photoURL } : undefined}
-                  style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#ddd' }}
+                  style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c.line }}
                 />
                 <View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <AppText>{item?.profile?.displayName ?? item.toUid}</AppText>
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.toUid] ? '#34C759' : '#D1D5DB' }} />
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.toUid] ? '#34C759' : c.line }} />
                   </View>
                   {item?.profile?.email ? (
-                    <AppText variant="meta" style={{ color: '#666' }}>{item.profile.email}</AppText>
+                    <AppText variant="meta" style={{ color: c.textSubtle }}>{item.profile.email}</AppText>
                   ) : null}
                 </View>
               </View>
@@ -298,7 +300,7 @@ export default function FriendsScreen() {
         )}
       />
 
-      <Text style={{ fontSize: 18, fontWeight: '600', marginVertical: 8 }}>Friends</Text>
+      <Text style={{ fontSize: 18, fontWeight: '600', marginVertical: 8, color: c.textStrong }}>Friends</Text>
       <FlatList
         data={friends}
         keyExtractor={(item) => item.id}
@@ -319,15 +321,15 @@ export default function FriendsScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <Image
                     source={item?.profile?.photoURL ? { uri: item.profile.photoURL } : undefined}
-                    style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#ddd' }}
+                    style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c.line }}
                   />
                   <View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <AppText>{item?.profile?.displayName ?? item.friendUid}</AppText>
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.friendUid] ? '#34C759' : '#D1D5DB' }} />
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presenceMap[item.friendUid] ? '#34C759' : c.line }} />
                     </View>
                     {item?.profile?.email ? (
-                      <AppText variant="meta" style={{ color: '#666' }}>{item.profile.email}</AppText>
+                      <AppText variant="meta" style={{ color: c.textSubtle }}>{item.profile.email}</AppText>
                     ) : null}
                   </View>
                 </View>

@@ -724,7 +724,11 @@ export default function ChatRoomScreen() {
                   {unread > 0 ? (
                     <AppText variant="meta" style={{ color: '#999', fontSize: 11, lineHeight: 13 }}>{unread}</AppText>
                   ) : <AppText variant="meta" style={{ color: 'transparent', fontSize: 11, lineHeight: 13 }}>0</AppText>}
-                  {item.temp ? <AppText variant="meta" style={{ color: '#999', fontSize: 11, lineHeight: 13 }}>sending…</AppText> : (timeStr ? <AppText variant="meta" style={{ color: '#666', fontSize: 11, lineHeight: 13 }}>{timeStr}</AppText> : null)}
+                  {item.temp ? (
+                    <AppText variant="meta" style={{ color: '#999', fontSize: 10, lineHeight: 12 }} numberOfLines={1}>sending…</AppText>
+                  ) : (
+                    timeStr ? <AppText variant="meta" style={{ color: '#666', fontSize: 10, lineHeight: 12 }} numberOfLines={1}>{timeStr}</AppText> : null
+                  )}
                 </View>
               </TouchableOpacity>
             );
@@ -764,7 +768,7 @@ export default function ChatRoomScreen() {
                   {unread > 0 ? (
                     <AppText variant="meta" style={{ color: '#999', textAlign: 'right', fontSize: 11, lineHeight: 13 }}>{unread}</AppText>
                   ) : <AppText variant="meta" style={{ color: 'transparent', fontSize: 11, lineHeight: 13 }}>0</AppText>}
-                  {timeStr ? <AppText variant="meta" style={{ color: '#666', textAlign: 'right', fontSize: 11, lineHeight: 13 }}>{timeStr}</AppText> : null}
+                  {timeStr ? <AppText variant="meta" style={{ color: '#666', textAlign: 'right', fontSize: 10, lineHeight: 12 }} numberOfLines={1}>{timeStr}</AppText> : null}
                 </View>
               </View>
             </TouchableOpacity>

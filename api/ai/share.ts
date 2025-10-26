@@ -235,10 +235,12 @@ export default async function handler(req: any, res: any) {
         createdAt: tripSnap.exists ? ((tripSnap.data() as any)?.createdAt || now) : now,
         createdBy: tripSnap.exists ? ((tripSnap.data() as any)?.createdBy || decoded.uid) : decoded.uid,
       }, { merge: true });
-      await chatRef.update({ lastMessage: `Trip plan updated (v${baseVer + 1})`, lastMessageAt: now, tripId: chatId } as any);
+      const fmt = (ms: number | null) => (ms ? new Date(ms).toISOString().slice(0,10) : 'TBD');
+      const announce = `${title}\n${fmt(startMs)} → ${fmt(endMs)}\nTrip planned — awesome! 🧭`;
+      await chatRef.update({ lastMessage: `Trip planned: ${title}`, lastMessageAt: now, tripId: chatId } as any);
       await chatRef.collection('messages').add({
         senderId: 'ai',
-        text: `Trip plan updated (v${baseVer + 1})`,
+        text: announce,
         imageUrl: null,
         timestamp: now,
         type: 'ai_response',

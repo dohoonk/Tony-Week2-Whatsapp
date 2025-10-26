@@ -149,7 +149,7 @@ export default function ChatRoomScreen() {
           headerRight: () => (
             // @ts-ignore
             <View style={{ marginRight: 8 }}>
-              <AppButton title="Edit" size="sm" variant="outline" onPress={() => { 
+              <AppButton title="Edit" size="sm" variant="ghost" onPress={() => { 
                 // @ts-ignore
                 navigation.navigate('GroupSettings' as never, { chatId } as never); 
               }} />

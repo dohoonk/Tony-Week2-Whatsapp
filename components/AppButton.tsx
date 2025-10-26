@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, ActivityIndicator, Text, View, GestureResponderEvent } from 'react-native';
 import { useThemeColors } from '../lib/theme';
 
-type Variant = 'primary' | 'secondary' | 'outline' | 'destructive';
+type Variant = 'primary' | 'secondary' | 'outline' | 'destructive' | 'ghost';
 type Size = 'sm' | 'md';
 
 export default function AppButton({
@@ -26,6 +26,7 @@ export default function AppButton({
     secondary: { bg: c.fill, text: c.textStrong, border: c.line },
     outline: { bg: 'transparent', text: c.primary, border: c.primary },
     destructive: { bg: c.error, text: '#FFFFFF', border: c.error },
+    ghost: { bg: 'transparent', text: c.primary, border: 'transparent' },
   }[variant];
 
   const padV = size === 'sm' ? 8 : 10;
@@ -49,7 +50,7 @@ export default function AppButton({
         justifyContent: 'center',
         minWidth: 44,
       })}
-      android_ripple={{ color: '#00000020' }}
+      android_ripple={variant === 'ghost' ? undefined : { color: '#00000020' }}
       hitSlop={6}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

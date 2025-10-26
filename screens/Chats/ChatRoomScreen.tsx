@@ -660,6 +660,51 @@ export default function ChatRoomScreen() {
     })();
   }, [messages, firstUnreadIndex, hasMoreOlder, oldestCursor, lastReadAt]);
 
+  const renderAITrip = (raw?: string) => {
+    if (!raw) return null;
+    // Expect our Trip share format with lines like: header, then per day sections starting with "Day N — YYYY-MM-DD"
+    if (!/\bDay\s+\d+\s+—\s+\d{4}-\d{2}-\d{2}/.test(raw)) return null;
+    const lines = raw.split(/\n/);
+    const header = lines.shift() || '';
+    const days: Array<{ title: string; weather?: string; items: string[] } > = [];
+    let current: { title: string; weather?: string; items: string[] } | null = null;
+    for (const lineRaw of lines) {
+      const line = lineRaw.replace(/\s+$/,'');
+      if (!line) continue;
+      if (/^Day\s+\d+\s+—\s+\d{4}-\d{2}-\d{2}/.test(line)) {
+        if (current) days.push(current);
+        current = { title: line, items: [] };
+        continue;
+      }
+      if (current && (/^[\u2600-\u26FF\u2700-\u27BF\u{1F300}-\u{1FAFF}]/u.test(line) || /°F|°C|rain|cloud|clear|snow|fog|drizzle|overcast/i.test(line))) {
+        current.weather = line.trim();
+        continue;
+      }
+      if (current && /^\s*-\s+/.test(line)) {
+        current.items.push(line.replace(/^\s*-\s+/, ''));
+        continue;
+      }
+      // Fallback: treat as item
+      if (current) current.items.push(line);
+    }
+    if (current) days.push(current);
+
+    return (
+      <View style={{ backgroundColor: '#E5F3FF', borderRadius: 8, padding: 8 }}>
+        <Text style={{ fontWeight: '600', marginBottom: 6 }}>{header}</Text>
+        {days.map((d, idx) => (
+          <View key={idx} style={{ marginBottom: 8 }}>
+            <Text style={{ fontWeight: '600' }}>{d.title}</Text>
+            {d.weather ? <Text style={{ marginTop: 2 }}>{d.weather}</Text> : null}
+            {d.items.map((it, j) => (
+              <Text key={j} style={{ marginLeft: 8 }}>• {it}</Text>
+            ))}
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -772,7 +817,9 @@ export default function ChatRoomScreen() {
             return (
               <View style={{ marginBottom: 8, alignSelf: 'flex-start', maxWidth: BUBBLE_MAX }}>
                 <AppText variant="meta" style={{ color: '#6B7280', marginBottom: 2 }}>TripMate AI</AppText>
-                <Text style={{ backgroundColor: '#E5F3FF', borderRadius: 8, padding: 8 }}>{item.text}</Text>
+                {renderAITrip(item.text) || (
+                  <Text style={{ backgroundColor: '#E5F3FF', borderRadius: 8, padding: 8 }}>{item.text}</Text>
+                )}
               </View>
             );
           }

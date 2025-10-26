@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions, AppState, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TextInput, Button, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions, AppState, Modal, ActivityIndicator, LayoutAnimation, UIManager } from 'react-native';
 import Banner from '../../components/Banner';
 import AppText from '../../components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -68,6 +68,10 @@ export default function ChatRoomScreen() {
   const [reminderDueAt, setReminderDueAt] = useState<number | null>(null);
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [pendingCount, setPendingCount] = useState<number>(0);
+  // Enable LayoutAnimation on Android
+  useEffect(() => {
+    try { UIManager.setLayoutAnimationEnabledExperimental && UIManager.setLayoutAnimationEnabledExperimental(true); } catch {}
+  }, []);
 
   const parseDueAtFromText = (text: string): number | null => {
     try {
@@ -179,6 +183,7 @@ export default function ChatRoomScreen() {
         .reverse()
         .map(({ __doc, ...m }) => m as any);
       // Merge with existing (older) messages and de-dup, then sort asc
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setMessages((prev) => {
         const map = new Map<string, any>();
         [...prev, ...liveAsc].forEach((m: any) => map.set(m.id, m));
@@ -238,6 +243,7 @@ export default function ChatRoomScreen() {
           await sendMessage(chatId, uid, { imageUrl });
         }
         // success: remove temp and job
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
         delete outboxRef.current[tempId];
         // if queue empty, stop timer
@@ -265,6 +271,7 @@ export default function ChatRoomScreen() {
           const imageUrl = await uploadChatImage(chatId, job.uri);
           await sendMessage(chatId, uid, { imageUrl });
         }
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
         delete outboxRef.current[tempId];
         setPendingCount(Object.keys(outboxRef.current).length);
@@ -591,6 +598,7 @@ export default function ChatRoomScreen() {
         .slice()
         .reverse()
         .map(({ __doc, ...m }) => m as any);
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setMessages((prev) => {
         const map = new Map<string, any>();
         [...olderAsc, ...prev].forEach((m: any) => map.set(m.id, m));

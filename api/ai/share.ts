@@ -184,8 +184,8 @@ export default async function handler(req: any, res: any) {
       collect(isoDate); collect(slashDate); collect(monthDate);
       const startStr = (llmStart || dates[0] || 'TBD') as string;
       const endStr = (llmEnd || (dates[1] || (dates[0] ? dates[0] : 'TBD'))) as string;
-      // Title includes destination and date range
-      const title = `${dest} - ${startStr} - ${endStr}`;
+      // Title will use normalized/ordered dates after parsing below
+      let title = `${dest} - ${startStr} - ${endStr}`;
 
       // Try to convert parsed strings into numeric ms
       const parseToMs = (s: string): number | null => {
@@ -222,6 +222,10 @@ export default async function handler(req: any, res: any) {
       const eMsRaw = parseToMs(endStr);
       const startMs = sMsRaw && eMsRaw ? Math.min(sMsRaw, eMsRaw) : (sMsRaw ?? null);
       const endMs = sMsRaw && eMsRaw ? Math.max(sMsRaw, eMsRaw) : (eMsRaw ?? sMsRaw ?? null);
+
+      // Recompute title with ordered YYYY-MM-DD strings for consistency
+      const fmt = (ms: number | null) => (ms ? new Date(ms).toISOString().slice(0,10) : 'TBD');
+      title = `${dest} - ${fmt(startMs)} - ${fmt(endMs)}`;
 
       const tripRef = db.collection('trips').doc(chatId);
       const tripSnap = await tripRef.get();

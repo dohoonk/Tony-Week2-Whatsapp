@@ -161,6 +161,7 @@ Chat (latest last):\n${context}`;
             // debug removed
             let parsed: any = null;
             try { parsed = JSON.parse(out); } catch {}
+            try { console.log('[WX] extractorParsed', parsed); } catch {}
             if (parsed && typeof parsed === 'object') {
               const pCity = String(parsed.city || '').trim();
               const pStart = String(parsed.start || '').trim();
@@ -233,6 +234,8 @@ Chat (latest last):\n${context}`;
         const segCity = String((body as any)?.__parsed?.city || cityPhrase || '').trim();
         const segStart = String((body as any)?.__parsed?.start || start || '').trim();
         const segEnd = String((body as any)?.__parsed?.end || end || segStart || '').trim();
+        const pathUsed = (body as any)?.__parsed?.city ? 'llm' : (cityPhrase ? 'regex' : 'none');
+        try { console.log('[WX] path', { pathUsed, segCity, segStart, segEnd }); } catch {}
 
         if (wxKey && segCity) {
           // Validate/resolve city via WeatherAPI search, use lat,lon for certainty
@@ -260,6 +263,7 @@ Chat (latest last):\n${context}`;
                   if (composite) top = composite;
                 }
                 resolved = { name: String(top?.name || segCity), lat: Number(top?.lat || 0), lon: Number(top?.lon || 0), country: String(top?.country || '') };
+                try { console.log('[WX] resolved', resolved); } catch {}
               }
             }
           } catch {}
@@ -303,6 +307,7 @@ Chat (latest last):\n${context}`;
               const parts = results.map(r => `${r.date}: ${r.lo}°F–${r.hi}°F, ${r.cond}`);
               weatherSummary = `Weather for ${resolved.name} (${segStart} → ${segEnd})\n` + parts.join('\n');
               // debug removed
+              try { console.log('[WX] summary', weatherSummary); } catch {}
             }
           }
         }

@@ -16,6 +16,7 @@ import { uploadChatImage } from '../../firebase/storageService';
 import { showLocalNotification } from '../../lib/notifications';
 import { fetchDraft, shareDraft } from '../../lib/ai';
 import PollCard from '../../components/PollCard';
+import { impactLight, selection } from '../../lib/haptics';
 
 type Message = {
   id: string;
@@ -457,6 +458,7 @@ export default function ChatRoomScreen() {
   const onSend = async () => {
     const uid = auth.currentUser?.uid;
     if (!uid || !text.trim()) return;
+    impactLight();
     // @TM interception: open AI preview instead of sending user text
     const { isTM, prompt, tool } = parseMention(text);
     if (isTM) {
@@ -561,6 +563,7 @@ export default function ChatRoomScreen() {
 
   const onAIMenuAction = async (tool: 'summarize' | 'poll' | 'reminder' | 'trip' | 'weather') => {
     try {
+      selection();
       setMenuForId(null);
       setLoadingDraft(true);
       setCurrentTool(tool);

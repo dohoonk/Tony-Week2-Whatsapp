@@ -851,14 +851,20 @@ export default function ChatRoomScreen() {
         }}
       />
       {chatMeta?.tripId ? (
-        <TouchableOpacity
-          onPress={() => (navigation as any).navigate('Trips', { screen: 'TripsHome' })}
-          activeOpacity={0.7}
-        >
-          <Text style={{ textAlign: 'center', color: '#2563EB', marginBottom: 4 }}>
-            {tripTitle ? `Trip linked · ${tripTitle}` : `Trip linked · ${String(chatMeta.tripId).slice(0, 8)}…`}
-          </Text>
-        </TouchableOpacity>
+        <View style={{ paddingHorizontal: 16, marginBottom: 6 }}>
+          <TouchableOpacity
+            onPress={() => (navigation as any).navigate('Trips', { screen: 'TripsHome' })}
+            activeOpacity={0.8}
+          >
+            <Banner kind="info">
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <Text style={{ fontWeight: '600', color: palette.textStrong }}>Trip linked</Text>
+                <Text style={{ color: palette.primary }}>{tripTitle ? `${tripTitle}` : `${String(chatMeta.tripId).slice(0, 8)}…`}</Text>
+                <Text style={{ color: palette.textSubtle }}>›</Text>
+              </View>
+            </Banner>
+          </TouchableOpacity>
+        </View>
       ) : null}
       {typingNames ? (
         <AppText variant="meta" style={{ textAlign: 'center', color: '#888', marginBottom: 4 }}>{typingNames}</AppText>

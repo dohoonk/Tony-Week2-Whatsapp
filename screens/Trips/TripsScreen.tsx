@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Alert, TextInput, Modal } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Alert, TextInput, Modal, Image } from 'react-native';
 import { useThemeColors } from '../../lib/theme';
 import EmptyState from '../../components/EmptyState';
 import AppButton from '../../components/AppButton';
@@ -146,7 +146,26 @@ export default function TripsScreen() {
           </Text>
         ) : null}
         {item.notes ? <Text style={{ color: c.text, marginTop: 4 }} numberOfLines={3}>{item.notes}</Text> : null}
-        <Text style={{ color: c.textSubtle, marginTop: 6 }}>Members: {names || (item.members || []).length}</Text>
+        {(item.members || []).length > 0 ? (
+          <View style={{ marginTop: 8 }}>
+            <Text style={{ color: c.textSubtle, marginBottom: 4 }}>Members</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              {(item.members || []).slice(0, 4).map((uid) => {
+                const u = userCache[uid];
+                if (!u) ensureUser(uid);
+                return (
+                  <View key={uid} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Image source={u?.photoURL ? { uri: u.photoURL } : undefined} style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: c.line }} />
+                    <Text style={{ color: c.textSubtle }}>{u?.displayName || uid}</Text>
+                  </View>
+                );
+              })}
+              {(item.members || []).length > 4 ? (
+                <Text style={{ color: c.textSubtle }}>+{(item.members || []).length - 4} more</Text>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'nowrap' }}>
           <AppButton title="Trip Planner" variant="outline" size="sm" onPress={() => nav.navigate('TripPlanner', { chatId: item.chatId })} />
           <AppButton title="Edit" variant="outline" size="sm" onPress={() => {
@@ -192,7 +211,26 @@ export default function TripsScreen() {
             {startTs ? new Date(startTs).toLocaleDateString() : '—'} → {endTs ? new Date(endTs).toLocaleDateString() : '—'}
           </Text>
         ) : null}
-        <Text style={{ color: c.textSubtle, marginTop: 6 }}>Members: {names || (item.members || []).length}</Text>
+        {(item.members || []).length > 0 ? (
+          <View style={{ marginTop: 8 }}>
+            <Text style={{ color: c.textSubtle, marginBottom: 4 }}>Members</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              {(item.members || []).slice(0, 4).map((uid) => {
+                const u = userCache[uid];
+                if (!u) ensureUser(uid);
+                return (
+                  <View key={uid} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Image source={u?.photoURL ? { uri: u.photoURL } : undefined} style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: c.line }} />
+                    <Text style={{ color: c.textSubtle }}>{u?.displayName || uid}</Text>
+                  </View>
+                );
+              })}
+              {(item.members || []).length > 4 ? (
+                <Text style={{ color: c.textSubtle }}>+{(item.members || []).length - 4} more</Text>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
           <AppButton title="Restore" variant="outline" size="sm" onPress={async () => {
             try {

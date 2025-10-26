@@ -232,6 +232,16 @@ export default function TripPlannerScreen() {
     }
   };
 
+  const saveItineraryQuick = async (next: ItineraryDay[]) => {
+    if (!chatId) return;
+    try {
+      await updateDoc(doc(db, 'trips', chatId), {
+        itinerary: next,
+        updatedAt: Date.now(),
+      } as any);
+    } catch {}
+  };
+
   const generateItinerary = async () => {
     if (!chatId) return;
     try {
@@ -311,6 +321,22 @@ export default function TripPlannerScreen() {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <AppText>{item?.date || `Day ${index + 1}`}</AppText>
                 <TouchableOpacity onPress={() => removeDay(index)}><Text style={{ color: '#EF4444' }}>Remove day</Text></TouchableOpacity>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                <Text style={{ color: c.textSubtle, width: 40 }}>City</Text>
+                <TextInput
+                  value={item.city || ''}
+                  onChangeText={(txt) => {
+                    setItinerary((arr) => arr.map((d, i) => (i === index ? { ...d, city: txt || undefined, resolved: undefined } : d)));
+                  }}
+                  onEndEditing={() => {
+                    const next = itinerary.map((d, i) => (i === index ? { ...d, city: (d.city || '') || undefined, resolved: undefined } : d));
+                    saveItineraryQuick(next);
+                  }}
+                  placeholder="City (optional)"
+                  placeholderTextColor={c.textMuted}
+                  style={{ flex: 1, borderWidth: 1, borderColor: c.line, color: c.text, backgroundColor: c.surface, borderRadius: 8, padding: 8 }}
+                />
               </View>
               {weather[item?.date] ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>

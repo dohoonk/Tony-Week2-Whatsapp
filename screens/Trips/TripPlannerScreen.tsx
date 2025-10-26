@@ -39,9 +39,10 @@ export default function TripPlannerScreen() {
       if (Array.isArray((data as any)?.itinerary)) {
         // Accept existing docs with or without city/resolved fields
         const arr = (data as any).itinerary as any[];
-        const titleCity = String((data as any)?.title || '').includes(' - ')
-          ? String((data as any)?.title || '').split(' - ')[0].trim()
-          : '';
+        const rawTitle = String((data as any)?.title || '');
+        const titleCity = rawTitle.includes(' - ')
+          ? rawTitle.split(' - ')[0].trim()
+          : rawTitle.trim();
         let carry = titleCity || '';
         const norm: ItineraryDay[] = arr.map((d) => {
           const nd: ItineraryDay = {
@@ -70,9 +71,9 @@ export default function TripPlannerScreen() {
           setItinerary([]);
         }
       }
-      // Infer city from title (format: "Destination - start - end")
+      // Infer city from title. If title is just the city, use it directly; otherwise use first segment.
       const t = String((data as any)?.title || '');
-      const inferredCity = t.includes(' - ') ? t.split(' - ')[0].trim() : '';
+      const inferredCity = t.includes(' - ') ? t.split(' - ')[0].trim() : t.trim();
       setWeatherCity(inferredCity);
     });
     return () => unsub();

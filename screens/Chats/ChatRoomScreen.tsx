@@ -17,6 +17,8 @@ import { showLocalNotification } from '../../lib/notifications';
 import { fetchDraft, shareDraft } from '../../lib/ai';
 import PollCard from '../../components/PollCard';
 import AppButton from '../../components/AppButton';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useThemeColors } from '../../lib/theme';
 import { impactLight, selection } from '../../lib/haptics';
 
 type Message = {
@@ -29,6 +31,7 @@ type Message = {
 };
 
 export default function ChatRoomScreen() {
+  const palette = useThemeColors();
   const BUBBLE_MAX = Math.round(Dimensions.get('window').width * 0.7);
   const META_WIDTH = 46; // fixed width to align unread/time across rows
   const insets = useSafeAreaInsets();
@@ -148,12 +151,12 @@ export default function ChatRoomScreen() {
         navigation.setOptions?.({
           headerRight: () => (
             // @ts-ignore
-            <View style={{ marginRight: 8 }}>
-              <AppButton title="Edit" size="sm" variant="ghost" onPress={() => { 
-                // @ts-ignore
-                navigation.navigate('GroupSettings' as never, { chatId } as never); 
-              }} />
-            </View>
+            <TouchableOpacity style={{ paddingHorizontal: 8, paddingVertical: 6 }} onPress={() => { 
+              // @ts-ignore
+              navigation.navigate('GroupSettings' as never, { chatId } as never); 
+            }}>
+              <Ionicons name="create-outline" size={22} color={palette.primary} />
+            </TouchableOpacity>
           ),
           headerRightContainerStyle: { paddingRight: 8, alignItems: 'center', justifyContent: 'center' },
         });

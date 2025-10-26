@@ -44,6 +44,17 @@ export function useThemeColors(): ThemeColors {
   return scheme === 'dark' ? (darkColors as ThemeColors) : (colors as ThemeColors);
 }
 
+export function useIsDarkMode(): boolean {
+  const system = useColorScheme();
+  let scheme = system;
+  try {
+    const { mode } = useThemeMode();
+    if (mode === 'light') scheme = 'light';
+    if (mode === 'dark') scheme = 'dark';
+  } catch {}
+  return scheme === 'dark';
+}
+
 export const spacing = [4, 8, 12, 16, 20, 24] as const;
 export const radius = { sm: 8, md: 12 } as const;
 

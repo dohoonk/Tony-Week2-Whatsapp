@@ -791,7 +791,7 @@ export default function ChatRoomScreen() {
                 {item.imageUrl ? (
                   <Image source={{ uri: item.imageUrl }} style={{ width: Math.min(200, BUBBLE_MAX), height: 200, borderRadius: 8 }} />
                 ) : (
-                  <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1, color: isFirstUnread ? '#10B981' : (isLastRead ? '#FF3B30' : undefined) }}>{item.text}</Text>
+                  <Text style={{ backgroundColor: '#DCF8C6', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1, color: isFirstUnread ? '#10B981' : (isLastRead ? '#FF3B30' : undefined) }}>{item.text}</Text>
                 )}
                 <View style={{ width: META_WIDTH, alignItems: 'flex-end' }}>
                   {unread > 0 ? (

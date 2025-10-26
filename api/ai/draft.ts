@@ -142,10 +142,10 @@ Chat (latest last):\n${context}`;
           return out;
         };
 
-        // If not already provided by @TM auto, ask LLM to extract a city and dates for weather
+        // ALWAYS ask LLM to extract a city and dates for weather
         try {
           const openaiKeyWx = process.env.OPENAI_API_KEY as string | undefined;
-          if (openaiKeyWx && !(body as any)?.__parsed) {
+          if (openaiKeyWx) {
             // eslint-disable-next-line @typescript-eslint/no-var-requires
             const { OpenAI } = require('openai');
             const client = new OpenAI({ apiKey: openaiKeyWx });
@@ -156,6 +156,7 @@ Rules: City must be a real city/town (avoid airports); title-case; min 3 chars; 
 Resolve phrases like "next week"/"this weekend" to ISO dates.
 Prompt: ${String(prompt || '')}
 Chat (latest last):\n${context}`;
+            try { console.log('[WX] extractorPrompt', extractor); } catch {}
             const resp = await client.responses.create({ model: 'gpt-4.1-mini', input: extractor, response_format: { type: 'json_object' } });
             const out = (resp as any)?.output_text || '';
             // debug removed
@@ -185,11 +186,12 @@ Chat (latest last):\n${context}`;
         let parsedEnd = String((body as any)?.__parsed?.end || '').trim();
         // debug removed
 
+        const USE_REGEX = false; // disable regex-based city parsing
         // 1) Allow words between 'weather' and preposition
-        const p1 = !cityPhrase ? /weather[\w\s,.-]{0,80}?(?:in|at|for)\s+([A-Za-z][A-Za-z\s-]{1,40})/i.exec(cleaned) : null;
+        const p1 = !cityPhrase && USE_REGEX ? /weather[\w\s,.-]{0,80}?(?:in|at|for)\s+([A-Za-z][A-Za-z\s-]{1,40})/i.exec(cleaned) : null;
         if (!cityPhrase && p1) cityPhrase = (p1[1] || '').trim();
         // 2) Fallback: any 'in|at|for <city>' anywhere (case-insensitive, allow lowercase)
-        if (!cityPhrase) {
+        if (!cityPhrase && USE_REGEX) {
           const p2 = /\b(?:in|at|for)\s+([A-Za-z][A-Za-z\s-]{1,40})(?=\s+(?:next|this|coming|week(?:end)?|today|tomorrow|tonight|from|to|on|by)|[?.!,]|$)/i.exec(cleaned);
           if (p2) cityPhrase = (p2[1] || '').trim();
         }

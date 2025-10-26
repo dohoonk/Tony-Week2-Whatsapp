@@ -304,7 +304,11 @@ Chat (latest last):\n${context}`;
             if (within14) {
               const daysNeeded = Math.min(14, Math.max(1, Math.ceil((Date.parse(segEnd) - Date.now())/(24*3600*1000)) + 1));
               const url = `https://api.weatherapi.com/v1/forecast.json?key=${wxKey}&q=${encodeURIComponent(q)}&days=${daysNeeded}&aqi=no&alerts=no`;
-              try { console.log('[WX] request', JSON.stringify({ endpoint: 'forecast', q, days: daysNeeded, start: segStart, end: segEnd })); } catch {}
+              try {
+                console.log('[WX] request', JSON.stringify({ endpoint: 'forecast', q, days: daysNeeded, start: segStart, end: segEnd }));
+                const safe = url.replace(/key=[^&]+/, 'key=***');
+                console.log('[WX] requestUrl', safe);
+              } catch {}
               const resp = await fetch(url);
               if (resp.ok) {
                 const data: any = await resp.json();
@@ -322,7 +326,11 @@ Chat (latest last):\n${context}`;
               for (let t = Date.parse(segStart); t <= Date.parse(segEnd); t += 24*3600*1000) {
                 const dt = new Date(t).toISOString().slice(0,10);
                 const url = `https://api.weatherapi.com/v1/future.json?key=${wxKey}&q=${encodeURIComponent(q)}&dt=${dt}`;
-                try { console.log('[WX] request', JSON.stringify({ endpoint: 'future', q, dt })); } catch {}
+                try {
+                  console.log('[WX] request', JSON.stringify({ endpoint: 'future', q, dt }));
+                  const safe = url.replace(/key=[^&]+/, 'key=***');
+                  console.log('[WX] requestUrl', safe);
+                } catch {}
                 const resp = await fetch(url);
                 if (resp.ok) {
                   const data: any = await resp.json();

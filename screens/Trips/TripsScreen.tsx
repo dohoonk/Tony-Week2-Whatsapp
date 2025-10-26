@@ -194,6 +194,46 @@ export default function TripsScreen() {
     );
   };
 
+  const renderArchivedTrip = ({ item }: { item: Trip }) => {
+    if (!(item as any)?.archived) return null;
+    const names = (item.members || []).map((m) => userCache[m]?.displayName || m).slice(0, 4).join(', ');
+    (item.members || []).forEach((m) => { if (!userCache[m]) ensureUser(m); });
+    const startTs = typeof (item.startDate as any)?.toMillis === 'function' ? (item.startDate as any).toMillis() : (item.startDate as any) ?? null;
+    const endTs = typeof (item.endDate as any)?.toMillis === 'function' ? (item.endDate as any).toMillis() : (item.endDate as any) ?? null;
+    return (
+      <View style={{ padding: 12, borderRadius: 12, backgroundColor: c.fill, marginBottom: 12, opacity: 0.85 }}>
+        <Text style={{ fontWeight: '600', color: c.textStrong }}>{(item.title || 'Trip Plan') + (item?.id ? ` (v${(item as any).version ?? 1})` : '')}</Text>
+        {startTs || endTs ? (
+          <Text style={{ color: c.textSubtle, marginTop: 4 }}>
+            {startTs ? new Date(startTs).toLocaleDateString() : '—'} → {endTs ? new Date(endTs).toLocaleDateString() : '—'}
+          </Text>
+        ) : null}
+        <Text style={{ color: c.textSubtle, marginTop: 6 }}>Members: {names || (item.members || []).length}</Text>
+        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+          <TouchableOpacity onPress={async () => {
+            try {
+              await updateDoc(doc(db, 'trips', item.id), { archived: false, updatedAt: Date.now(), updatedBy: auth.currentUser?.uid || 'system' } as any);
+            } catch {}
+          }}>
+            <Text style={{ color: c.primary }}>Restore</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => {
+            Alert.alert(
+              'Delete archived trip?',
+              'This will permanently remove the trip for everyone in the chat.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete', style: 'destructive', onPress: async () => { try { await deleteDoc(doc(db, 'trips', item.id)); } catch {} } },
+              ]
+            );
+          }}>
+            <Text style={{ color: c.error }}>Delete</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={{ flex: 1, padding: 16 }}>
       <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 12, color: c.textStrong }}>Trips</Text>
@@ -202,6 +242,13 @@ export default function TripsScreen() {
       ) : (
         <FlatList data={trips} keyExtractor={(t) => t.id} renderItem={renderTrip} style={{ marginBottom: 12 }} />
       )}
+
+      {trips.filter((t) => (t as any)?.archived).length > 0 ? (
+        <>
+          <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 12, marginTop: 8, color: c.textStrong }}>Archived</Text>
+          <FlatList data={trips} keyExtractor={(t) => `arch-${t.id}`} renderItem={renderArchivedTrip} />
+        </>
+      ) : null}
 
       <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 12, color: c.textStrong }}>Reminders</Text>
       {upcoming.length === 0 ? (

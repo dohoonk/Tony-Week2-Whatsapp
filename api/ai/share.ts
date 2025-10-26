@@ -131,7 +131,8 @@ export default async function handler(req: any, res: any) {
       collect(isoDate); collect(slashDate); collect(monthDate);
       const startStr = dates[0] || 'TBD';
       const endStr = dates[1] || (dates[0] ? dates[0] : 'TBD');
-      const title = `${dest} - ${startStr} - ${endStr}`;
+      // Title should only be the destination (omit dates)
+      const title = `${dest}`;
 
       // Try to convert parsed strings into numeric ms
       const parseToMs = (s: string): number | null => {

@@ -182,10 +182,11 @@ export default async function handler(req: any, res: any) {
         while ((m = r.exec(raw)) !== null) dates.push(m[1]);
       };
       collect(isoDate); collect(slashDate); collect(monthDate);
-      const startStr = (llmStart || dates[0] || 'TBD') as string;
-      const endStr = (llmEnd || (dates[1] || (dates[0] ? dates[0] : 'TBD'))) as string;
-      // Title will use normalized/ordered dates after parsing below
-      let title = `${dest} - ${startStr} - ${endStr}`;
+      // Prefer extractor values; fallback to regex only if missing
+      const startStr = (llmStart || (dates[0] || '')) as string;
+      const endStr = (llmEnd || (dates[1] || (dates[0] || ''))) as string;
+      // Title: city only (dest)
+      let title = `${dest}`;
 
       // Try to convert parsed strings into numeric ms
       const parseToMs = (s: string): number | null => {
@@ -222,10 +223,6 @@ export default async function handler(req: any, res: any) {
       const eMsRaw = parseToMs(endStr);
       const startMs = sMsRaw && eMsRaw ? Math.min(sMsRaw, eMsRaw) : (sMsRaw ?? null);
       const endMs = sMsRaw && eMsRaw ? Math.max(sMsRaw, eMsRaw) : (eMsRaw ?? sMsRaw ?? null);
-
-      // Recompute title with ordered YYYY-MM-DD strings for consistency
-      const fmt = (ms: number | null) => (ms ? new Date(ms).toISOString().slice(0,10) : 'TBD');
-      title = `${dest} - ${fmt(startMs)} - ${fmt(endMs)}`;
 
       const tripRef = db.collection('trips').doc(chatId);
       const tripSnap = await tripRef.get();

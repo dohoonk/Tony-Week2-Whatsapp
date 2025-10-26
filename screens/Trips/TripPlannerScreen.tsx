@@ -37,12 +37,21 @@ export default function TripPlannerScreen() {
       if (Array.isArray((data as any)?.itinerary)) {
         // Accept existing docs with or without city/resolved fields
         const arr = (data as any).itinerary as any[];
-        const norm: ItineraryDay[] = arr.map((d) => ({
-          date: String(d?.date || ''),
-          city: d?.city || undefined,
-          resolved: d?.resolved ? { name: String(d.resolved.name || ''), lat: Number(d.resolved.lat || 0), lon: Number(d.resolved.lon || 0) } : undefined,
-          items: Array.isArray(d?.items) ? d.items.map((x: any) => String(x)) : [],
-        }));
+        const titleCity = String((data as any)?.title || '').includes(' - ')
+          ? String((data as any)?.title || '').split(' - ')[0].trim()
+          : '';
+        let carry = titleCity || '';
+        const norm: ItineraryDay[] = arr.map((d) => {
+          const nd: ItineraryDay = {
+            date: String(d?.date || ''),
+            city: d?.city || undefined,
+            resolved: d?.resolved ? { name: String(d.resolved.name || ''), lat: Number(d.resolved.lat || 0), lon: Number(d.resolved.lon || 0) } : undefined,
+            items: Array.isArray(d?.items) ? d.items.map((x: any) => String(x)) : [],
+          };
+          if (!nd.city && !nd.resolved?.name && carry) nd.city = carry;
+          carry = nd.city || nd.resolved?.name || carry;
+          return nd;
+        });
         setItinerary(norm);
       } else {
         // initialize from date range if available
@@ -189,7 +198,10 @@ export default function TripPlannerScreen() {
       const t = Date.parse(lastDate) + 24 * 3600 * 1000;
       nextDateStr = new Date(t).toISOString().slice(0, 10);
     }
-    setItinerary((arr) => [...arr, { date: nextDateStr, items: [] }]);
+    setItinerary((arr) => {
+      const prevCity = arr.length > 0 ? (arr[arr.length - 1].city || arr[arr.length - 1].resolved?.name || weatherCity || '') : (weatherCity || '');
+      return [...arr, { date: nextDateStr, city: prevCity || undefined, items: [] }];
+    });
   };
 
   const addItem = (idx: number, text: string) => {

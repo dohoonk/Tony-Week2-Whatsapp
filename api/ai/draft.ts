@@ -142,6 +142,36 @@ Chat (latest last):\n${context}`;
           return out;
         };
 
+        // If not already provided by @TM auto, ask LLM to extract a city and dates for weather
+        try {
+          const openaiKeyWx = process.env.OPENAI_API_KEY as string | undefined;
+          if (openaiKeyWx && !(body as any)?.__parsed) {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const { OpenAI } = require('openai');
+            const client = new OpenAI({ apiKey: openaiKeyWx });
+            const context = messages.map((m: any) => `- ${m.senderId === 'ai' ? 'AI' : m.senderId}: ${m.text || ''}`).join('\n');
+            const extractor = `Extract a single best city and a concrete start/end date for a weather query.
+Return ONLY JSON (no markdown): { "city": string, "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }
+Rules: City must be a real city/town (avoid airports); title-case; min 3 chars; reject stopwords like "we".
+Resolve phrases like "next week"/"this weekend" to ISO dates.
+Prompt: ${String(prompt || '')}
+Chat (latest last):\n${context}`;
+            const resp = await client.responses.create({ model: 'gpt-4.1-mini', input: extractor, response_format: { type: 'json_object' } });
+            const out = (resp as any)?.output_text || '';
+            try { console.log('[AI-Debug] WX extractor raw', out); } catch {}
+            let parsed: any = null;
+            try { parsed = JSON.parse(out); } catch {}
+            if (parsed && typeof parsed === 'object') {
+              const pCity = String(parsed.city || '').trim();
+              const pStart = String(parsed.start || '').trim();
+              const pEnd = String(parsed.end || '').trim();
+              if (pCity && pCity.length >= 3 && !/^we$/i.test(pCity)) {
+                (body as any).__parsed = { city: pCity, start: pStart, end: pEnd };
+              }
+            }
+          }
+        } catch {}
+
         // Extract potential city phrase with tolerant patterns and trim at delimiters
         let cityPhrase = '';
         const cleaned = [
@@ -199,11 +229,16 @@ Chat (latest last):\n${context}`;
         }
         try { console.log('[AI-Debug] Weather date range', { start, end }); } catch {}
 
-        if (wxKey && cityPhrase) {
+        // If we have LLM-parsed values, prefer those
+        const segCity = String((body as any)?.__parsed?.city || cityPhrase || '').trim();
+        const segStart = String((body as any)?.__parsed?.start || start || '').trim();
+        const segEnd = String((body as any)?.__parsed?.end || end || segStart || '').trim();
+
+        if (wxKey && segCity) {
           // Validate/resolve city via WeatherAPI search, use lat,lon for certainty
           let resolved: { name: string; lat: number; lon: number; country: string } | null = null;
           try {
-            const sUrl = `https://api.weatherapi.com/v1/search.json?key=${wxKey}&q=${encodeURIComponent(cityPhrase)}`;
+            const sUrl = `https://api.weatherapi.com/v1/search.json?key=${wxKey}&q=${encodeURIComponent(segCity)}`;
             const safeUrl = sUrl.replace(/key=[^&]+/, 'key=***');
             try { console.log('[AI-Debug] Weather search', { url: safeUrl }); } catch {}
             const sResp = await fetch(sUrl);
@@ -212,12 +247,12 @@ Chat (latest last):\n${context}`;
               if (Array.isArray(arr) && arr.length > 0) {
                 // Prefer non-airport results that include the requested city
                 const filtered = arr.filter((x: any) => !/airport|air base|aerodrome/i.test(String(x?.name || '')));
-                const exact = filtered.find((x: any) => String(x?.name || '').toLowerCase() === cityPhrase.toLowerCase());
-                const partial = filtered.find((x: any) => String(x?.name || '').toLowerCase().includes(cityPhrase.toLowerCase()));
+                const exact = filtered.find((x: any) => String(x?.name || '').toLowerCase() === segCity.toLowerCase());
+                const partial = filtered.find((x: any) => String(x?.name || '').toLowerCase().includes(segCity.toLowerCase()));
                 // If both city and region provided (e.g., "Austin, TX") try exact composite match
                 let top = exact || partial || filtered[0] || arr[0];
-                if (!exact && /,/.test(cityPhrase)) {
-                  const parts = cityPhrase.split(',').map(s => s.trim().toLowerCase());
+                if (!exact && /,/.test(segCity)) {
+                  const parts = segCity.split(',').map(s => s.trim().toLowerCase());
                   const composite = filtered.find((x: any) => {
                     const name = String(x?.name || '').toLowerCase();
                     const region = String(x?.region || '').toLowerCase();
@@ -225,7 +260,7 @@ Chat (latest last):\n${context}`;
                   });
                   if (composite) top = composite;
                 }
-                resolved = { name: String(top?.name || cityPhrase), lat: Number(top?.lat || 0), lon: Number(top?.lon || 0), country: String(top?.country || '') };
+                resolved = { name: String(top?.name || segCity), lat: Number(top?.lat || 0), lon: Number(top?.lon || 0), country: String(top?.country || '') };
               }
             }
           } catch {}
@@ -234,9 +269,9 @@ Chat (latest last):\n${context}`;
           if (resolved) {
             const q = `${resolved.lat},${resolved.lon}`;
             const results: { date: string; lo: number; hi: number; cond: string }[] = [];
-            const within14 = (Date.parse(start) - Date.now())/(24*3600*1000) <= 14 && (Date.parse(end) - Date.now())/(24*3600*1000) <= 14;
+            const within14 = (Date.parse(segStart) - Date.now())/(24*3600*1000) <= 14 && (Date.parse(segEnd) - Date.now())/(24*3600*1000) <= 14;
             if (within14) {
-              const daysNeeded = Math.min(14, Math.max(1, Math.ceil((Date.parse(end) - Date.now())/(24*3600*1000)) + 1));
+              const daysNeeded = Math.min(14, Math.max(1, Math.ceil((Date.parse(segEnd) - Date.now())/(24*3600*1000)) + 1));
               const url = `https://api.weatherapi.com/v1/forecast.json?key=${wxKey}&q=${encodeURIComponent(q)}&days=${daysNeeded}&aqi=no&alerts=no`;
               try { console.log('[AI-Debug] Weather forecast request', { url: url.replace(/key=[^&]+/, 'key=***'), q, daysNeeded }); } catch {}
               const resp = await fetch(url);
@@ -245,13 +280,13 @@ Chat (latest last):\n${context}`;
                 const fdays: any[] = Array.isArray(data?.forecast?.forecastday) ? data.forecast.forecastday : [];
                 for (const d of fdays) {
                   const dateStr = String(d?.date || '');
-                  if (dateStr >= start && dateStr <= end) {
+                  if (dateStr >= segStart && dateStr <= segEnd) {
                     results.push({ date: dateStr, lo: Math.round(d?.day?.mintemp_f ?? 0), hi: Math.round(d?.day?.maxtemp_f ?? 0), cond: String(d?.day?.condition?.text || '—') });
                   }
                 }
               }
             } else {
-              for (let t = Date.parse(start); t <= Date.parse(end); t += 24*3600*1000) {
+              for (let t = Date.parse(segStart); t <= Date.parse(segEnd); t += 24*3600*1000) {
                 const dt = new Date(t).toISOString().slice(0,10);
                 const url = `https://api.weatherapi.com/v1/future.json?key=${wxKey}&q=${encodeURIComponent(q)}&dt=${dt}`;
                 try { console.log('[AI-Debug] Weather future request', { url: url.replace(/key=[^&]+/, 'key=***'), q, dt }); } catch {}
@@ -267,13 +302,13 @@ Chat (latest last):\n${context}`;
             }
             if (results.length > 0) {
               const parts = results.map(r => `${r.date}: ${r.lo}°F–${r.hi}°F, ${r.cond}`);
-              weatherSummary = `Weather for ${resolved.name} (${start} → ${end})\n` + parts.join('\n');
+              weatherSummary = `Weather for ${resolved.name} (${segStart} → ${segEnd})\n` + parts.join('\n');
               try { console.log('[AI-Debug] Weather results count', results.length); } catch {}
             }
           }
         }
         if (!weatherSummary) {
-          weatherSummary = cityPhrase
+          weatherSummary = segCity
             ? `Weather summary is unavailable right now for ${cityPhrase}.`
             : 'Weather summary unavailable: specify a city (e.g., “Weather in Denver”).';
           try { console.log('[AI-Debug] Weather unavailable', { cityPhrase }); } catch {}

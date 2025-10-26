@@ -29,8 +29,9 @@ export default function AppButton({
     ghost: { bg: 'transparent', text: c.primary, border: 'transparent' },
   }[variant];
 
-  const padV = size === 'sm' ? 8 : 10;
-  const padH = size === 'sm' ? 12 : 14;
+  const isGhost = variant === 'ghost';
+  const padV = isGhost ? 0 : (size === 'sm' ? 8 : 10);
+  const padH = isGhost ? 0 : (size === 'sm' ? 12 : 14);
   const fontSize = size === 'sm' ? 14 : 16;
   const opacity = disabled ? 0.6 : 1;
 
@@ -45,15 +46,15 @@ export default function AppButton({
         borderWidth: variant === 'outline' ? 1 : 0,
         paddingVertical: padV,
         paddingHorizontal: padH,
-        borderRadius: 10,
+        borderRadius: isGhost ? 0 : 10,
         alignItems: 'center',
         justifyContent: 'center',
-        minWidth: 44,
+        minWidth: isGhost ? undefined : 44,
       })}
       android_ripple={variant === 'ghost' ? undefined : { color: '#00000020' }}
       hitSlop={6}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: isGhost ? 4 : 8 }}>
         {loading ? <ActivityIndicator color={palette.text} size="small" /> : null}
         <Text style={{ color: palette.text, fontSize, fontWeight: '600' }}>{title}</Text>
       </View>

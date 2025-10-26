@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Alert, TextInput, Modal } from 'react-native';
+import { useThemeColors } from '../../lib/theme';
 import EmptyState from '../../components/EmptyState';
 import { useNavigation } from '@react-navigation/native';
 import { TripsStackParamList } from '../../navigation/TripsStack';
@@ -28,6 +29,7 @@ type Trip = {
 };
 
 export default function TripsScreen() {
+  const c = useThemeColors();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [localShift, setLocalShift] = useState<Record<string, number>>({}); // reminderId -> ms delta
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -112,25 +114,25 @@ export default function TripsScreen() {
     const shifted = baseTs !== null ? baseTs + (localShift[item.id] ?? 0) : null;
     const tsStr = shifted ? new Date(shifted).toLocaleString() : 'No time set';
     return (
-      <View style={{ padding: 12, borderRadius: 12, backgroundColor: '#F3F4F6', marginBottom: 12 }}>
-        <Text style={{ fontWeight: '600' }}>{item.title || 'Reminder'}</Text>
-        <Text style={{ color: '#6B7280', marginTop: 4 }}>When: {tsStr}</Text>
-        <Text style={{ color: '#6B7280', marginTop: 2 }}>Status: {item.status || 'scheduled'}</Text>
+      <View style={{ padding: 12, borderRadius: 12, backgroundColor: c.fill, marginBottom: 12 }}>
+        <Text style={{ fontWeight: '600', color: c.textStrong }}>{item.title || 'Reminder'}</Text>
+        <Text style={{ color: c.textSubtle, marginTop: 4 }}>When: {tsStr}</Text>
+        <Text style={{ color: c.textSubtle, marginTop: 2 }}>Status: {item.status || 'scheduled'}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 }}>
           <TouchableOpacity onPress={() => adjust(item.id, -15 * 60 * 1000)}>
-            <Text style={{ color: '#2563EB' }}>-15m</Text>
+            <Text style={{ color: c.primary }}>-15m</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => adjust(item.id, +15 * 60 * 1000)}>
-            <Text style={{ color: '#2563EB' }}>+15m</Text>
+            <Text style={{ color: c.primary }}>+15m</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={async () => { try { await updateDoc(doc(db, 'reminders', item.id), { status: 'completed' } as any); } catch {} }}>
-            <Text style={{ color: '#2563EB' }}>Mark completed</Text>
+            <Text style={{ color: c.primary }}>Mark completed</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => save(item)}>
-            <Text style={{ color: '#2563EB' }}>Save</Text>
+            <Text style={{ color: c.primary }}>Save</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => cancel(item)}>
-            <Text style={{ color: '#EF4444' }}>Cancel</Text>
+            <Text style={{ color: c.error }}>Cancel</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -144,18 +146,18 @@ export default function TripsScreen() {
     const startTs = typeof (item.startDate as any)?.toMillis === 'function' ? (item.startDate as any).toMillis() : (item.startDate as any) ?? null;
     const endTs = typeof (item.endDate as any)?.toMillis === 'function' ? (item.endDate as any).toMillis() : (item.endDate as any) ?? null;
     return (
-      <View style={{ padding: 12, borderRadius: 12, backgroundColor: '#EEF2FF', marginBottom: 12 }}>
-        <Text style={{ fontWeight: '600' }}>{(item.title || 'Trip Plan') + (item?.id ? ` (v${(item as any).version ?? 1})` : '')}</Text>
+      <View style={{ padding: 12, borderRadius: 12, backgroundColor: c.fill, marginBottom: 12 }}>
+        <Text style={{ fontWeight: '600', color: c.textStrong }}>{(item.title || 'Trip Plan') + (item?.id ? ` (v${(item as any).version ?? 1})` : '')}</Text>
         {startTs || endTs ? (
-          <Text style={{ color: '#6B7280', marginTop: 4 }}>
+          <Text style={{ color: c.textSubtle, marginTop: 4 }}>
             {startTs ? new Date(startTs).toLocaleDateString() : '—'} → {endTs ? new Date(endTs).toLocaleDateString() : '—'}
           </Text>
         ) : null}
-        {item.notes ? <Text style={{ color: '#374151', marginTop: 4 }} numberOfLines={3}>{item.notes}</Text> : null}
-        <Text style={{ color: '#6B7280', marginTop: 6 }}>Members: {names || (item.members || []).length}</Text>
+        {item.notes ? <Text style={{ color: c.text, marginTop: 4 }} numberOfLines={3}>{item.notes}</Text> : null}
+        <Text style={{ color: c.textSubtle, marginTop: 6 }}>Members: {names || (item.members || []).length}</Text>
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
           <TouchableOpacity onPress={() => nav.navigate('TripPlanner', { chatId: item.chatId })}>
-            <Text style={{ color: '#2563EB' }}>Open planner</Text>
+            <Text style={{ color: c.primary }}>Open planner</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => {
             setEditTrip(item);
@@ -166,14 +168,14 @@ export default function TripsScreen() {
             setEditStart(sTs ? `${String(sTs.getMonth() + 1).padStart(2,'0')}/${String(sTs.getDate()).padStart(2,'0')}/${sTs.getFullYear()}` : '');
             setEditEnd(eTs ? `${String(eTs.getMonth() + 1).padStart(2,'0')}/${String(eTs.getDate()).padStart(2,'0')}/${eTs.getFullYear()}` : '');
           }}>
-            <Text style={{ color: '#2563EB' }}>Edit</Text>
+            <Text style={{ color: c.primary }}>Edit</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={async () => {
             try {
               await updateDoc(doc(db, 'trips', item.id), { archived: true, updatedAt: Date.now(), updatedBy: auth.currentUser?.uid || 'system' } as any);
             } catch {}
           }}>
-            <Text style={{ color: '#6B7280' }}>Archive</Text>
+            <Text style={{ color: c.textSubtle }}>Archive</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => {
             Alert.alert(
@@ -185,7 +187,7 @@ export default function TripsScreen() {
               ]
             );
           }}>
-            <Text style={{ color: '#EF4444' }}>Delete</Text>
+            <Text style={{ color: c.error }}>Delete</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -194,14 +196,14 @@ export default function TripsScreen() {
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 12 }}>Trips</Text>
+      <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 12, color: c.textStrong }}>Trips</Text>
       {trips.filter((t) => !(t as any)?.archived).length === 0 ? (
         <EmptyState title="No trips yet" subtitle="Use Plan trip in chats to create one" emoji="🧭" />
       ) : (
         <FlatList data={trips} keyExtractor={(t) => t.id} renderItem={renderTrip} style={{ marginBottom: 12 }} />
       )}
 
-      <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 12 }}>Reminders</Text>
+      <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 12, color: c.textStrong }}>Reminders</Text>
       {upcoming.length === 0 ? (
         <EmptyState title="No reminders yet" subtitle="Ask @TM to set one in chat" emoji="⏰" />
       ) : (
@@ -210,25 +212,25 @@ export default function TripsScreen() {
 
       <Modal visible={!!editTrip} animationType="slide" transparent onRequestClose={() => setEditTrip(null)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 16 }}>
-          <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 16 }}>
+          <View style={{ backgroundColor: c.surface, borderRadius: 12, padding: 16 }}>
             <Text style={{ fontWeight: '600', fontSize: 16, marginBottom: 8 }}>Edit trip</Text>
             <Text style={{ marginBottom: 4 }}>Title</Text>
-            <TextInput value={editTitle} onChangeText={setEditTitle} placeholder="Trip title" style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, marginBottom: 8 }} />
+            <TextInput value={editTitle} onChangeText={setEditTitle} placeholder="Trip title" style={{ borderWidth: 1, borderColor: c.line, color: c.text, backgroundColor: c.surface, borderRadius: 8, padding: 10, marginBottom: 8 }} />
             <Text style={{ marginBottom: 4 }}>Notes</Text>
-            <TextInput value={editNotes} onChangeText={setEditNotes} placeholder="Notes" multiline style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, marginBottom: 8, minHeight: 80 }} />
+            <TextInput value={editNotes} onChangeText={setEditNotes} placeholder="Notes" multiline style={{ borderWidth: 1, borderColor: c.line, color: c.text, backgroundColor: c.surface, borderRadius: 8, padding: 10, marginBottom: 8, minHeight: 80 }} />
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ marginBottom: 4 }}>Start (MM/DD/YYYY)</Text>
-                <TextInput value={editStart} onChangeText={setEditStart} placeholder="MM/DD/YYYY" style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10 }} />
+                <TextInput value={editStart} onChangeText={setEditStart} placeholder="MM/DD/YYYY" style={{ borderWidth: 1, borderColor: c.line, color: c.text, backgroundColor: c.surface, borderRadius: 8, padding: 10 }} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ marginBottom: 4 }}>End (MM/DD/YYYY)</Text>
-                <TextInput value={editEnd} onChangeText={setEditEnd} placeholder="MM/DD/YYYY" style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10 }} />
+                <TextInput value={editEnd} onChangeText={setEditEnd} placeholder="MM/DD/YYYY" style={{ borderWidth: 1, borderColor: c.line, color: c.text, backgroundColor: c.surface, borderRadius: 8, padding: 10 }} />
               </View>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 12 }}>
               <TouchableOpacity onPress={() => setEditTrip(null)}>
-                <Text style={{ color: '#666' }}>Cancel</Text>
+                <Text style={{ color: c.textSubtle }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={async () => {
                 if (!editTrip) return;
@@ -258,7 +260,7 @@ export default function TripsScreen() {
                   setEditTrip(null);
                 } catch {}
               }}>
-                <Text style={{ color: '#2563EB' }}>Save</Text>
+                <Text style={{ color: c.primary }}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import AppText from '../../components/AppText';
 import EmptyState from '../../components/EmptyState';
 import AppCard from '../../components/AppCard';
+import { useThemeColors } from '../../lib/theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChatsStackParamList } from '../../navigation/ChatsStack';
@@ -26,6 +27,7 @@ export default function ChatsScreen() {
   const [chats, setChats] = useState<Chat[]>([]);
   const uid = auth.currentUser?.uid;
   const navigation = useNavigation<NativeStackNavigationProp<ChatsStackParamList>>();
+  const c = useThemeColors();
 
   useEffect(() => {
     if (!uid) return;
@@ -93,13 +95,13 @@ export default function ChatsScreen() {
                   ) : avatar ? (
                     <Image source={{ uri: avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
                   ) : (
-                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#eee' }} />
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.fill }} />
                   )}
                   <View style={{ flex: 1 }}>
                     <AppText>{title}</AppText>
-                    {item.lastMessage ? <AppText variant="meta" style={{ color: '#666' }} numberOfLines={1}>{item.lastMessage}</AppText> : null}
+                    {item.lastMessage ? <AppText variant="meta" style={{ color: c.textSubtle }} numberOfLines={1}>{item.lastMessage}</AppText> : null}
                   </View>
-                  <AppText variant="meta" style={{ color: '#666', marginLeft: 8 }}>{formatLastMessageTime(item.lastMessageAt)}</AppText>
+                  <AppText variant="meta" style={{ color: c.textSubtle, marginLeft: 8 }}>{formatLastMessageTime(item.lastMessageAt)}</AppText>
                 </View>
               </AppCard>
             </TouchableOpacity>

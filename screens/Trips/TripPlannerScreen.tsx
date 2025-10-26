@@ -4,12 +4,14 @@ import AppCard from '../../components/AppCard';
 import AppText from '../../components/AppText';
 import AppButton from '../../components/AppButton';
 import { RouteProp, useRoute } from '@react-navigation/native';
+import { useThemeColors } from '../../lib/theme';
 import { TripsStackParamList } from '../../navigation/TripsStack';
 import { db } from '../../firebase/config';
 import { doc, onSnapshot, updateDoc, getDoc, addDoc, collection } from 'firebase/firestore';
 import { fetchItinerary, fetchTripWeather } from '../../lib/ai';
 
 export default function TripPlannerScreen() {
+  const c = useThemeColors();
   const route = useRoute<RouteProp<TripsStackParamList, 'TripPlanner'>>();
   const { chatId } = route.params || ({} as any);
   const [trip, setTrip] = useState<any>(null);
@@ -252,11 +254,11 @@ export default function TripPlannerScreen() {
   return (
     <View style={{ flex: 1, padding: 16 }}>
       <AppText variant="title">{trip?.title || 'Trip Planner'}</AppText>
-      {dateRange ? <AppText variant="meta" style={{ color: '#6B7280', marginTop: 4 }}>{dateRange}</AppText> : null}
+      {dateRange ? <AppText variant="meta" style={{ color: c.textSubtle, marginTop: 4 }}>{dateRange}</AppText> : null}
       {Array.isArray(trip?.members) && trip.members.length > 0 ? (
-        <Text style={{ color: '#6B7280', marginTop: 4 }}>Members: {memberNames}</Text>
+        <Text style={{ color: c.textSubtle, marginTop: 4 }}>Members: {memberNames}</Text>
       ) : null}
-      {trip?.notes ? <Text style={{ marginTop: 8 }}>{trip.notes}</Text> : null}
+      {trip?.notes ? <Text style={{ marginTop: 8, color: c.text }}>{trip.notes}</Text> : null}
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 16 }}>
         <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}>
           <AppButton title="Generate" onPress={generateItinerary} variant="primary" size="sm" />
@@ -269,7 +271,7 @@ export default function TripPlannerScreen() {
       <View style={{ marginTop: 8 }}>
         <AppText variant="title" style={{ fontSize: 16 }}>Itinerary</AppText>
       </View>
-      {weatherWarn ? <Text style={{ color: '#EF4444', marginTop: 4 }}>{weatherWarn}</Text> : null}
+      {weatherWarn ? <Text style={{ color: c.error, marginTop: 4 }}>{weatherWarn}</Text> : null}
 
       {itinerary.length === 0 ? (
         <Text style={{ color: '#6B7280', marginTop: 8 }}>No itinerary yet.</Text>
@@ -288,7 +290,7 @@ export default function TripPlannerScreen() {
                   {weather[item.date].icon ? (
                     <Image source={{ uri: weather[item.date].icon }} style={{ width: 20, height: 20 }} />
                   ) : null}
-                  <AppText variant="meta" style={{ color: '#6B7280' }}>
+                  <AppText variant="meta" style={{ color: c.textSubtle }}>
                     {weather[item.date].city ? `${weather[item.date].city}: ` : ''}
                     {weather[item.date].lo}°F–{weather[item.date].hi}°F, {weather[item.date].cond}
                   </AppText>
@@ -296,8 +298,8 @@ export default function TripPlannerScreen() {
               ) : null}
               {(item?.items || []).map((it, idx) => (
                 <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-                  <AppText style={{ color: '#374151', flexShrink: 1 }}>• {it}</AppText>
-                  <TouchableOpacity onPress={() => removeItem(index, idx)}><Text style={{ color: '#EF4444' }}>Remove</Text></TouchableOpacity>
+                  <AppText style={{ color: c.text, flexShrink: 1 }}>• {it}</AppText>
+                  <TouchableOpacity onPress={() => removeItem(index, idx)}><Text style={{ color: c.error }}>Remove</Text></TouchableOpacity>
                 </View>
               ))}
               <AddItemRow onAdd={(txt) => addItem(index, txt)} />
@@ -311,16 +313,17 @@ export default function TripPlannerScreen() {
 
 function AddItemRow({ onAdd }: { onAdd: (text: string) => void }) {
   const [text, setText] = useState('');
+  const c = useThemeColors();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
       <TextInput
         value={text}
         onChangeText={setText}
         placeholder="Add item"
-        style={{ flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 8 }}
+        style={{ flex: 1, borderWidth: 1, borderColor: c.line, color: c.text, backgroundColor: c.surface, borderRadius: 8, padding: 8 }}
       />
       <TouchableOpacity onPress={() => { if (text.trim()) { onAdd(text.trim()); setText(''); } }}>
-        <Text style={{ color: '#2563EB' }}>Add</Text>
+        <Text style={{ color: c.primary }}>Add</Text>
       </TouchableOpacity>
     </View>
   );

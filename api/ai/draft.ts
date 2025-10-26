@@ -299,7 +299,7 @@ Chat (latest last):\n${context}`;
 
           if (resolved) {
             const q = `${resolved.lat},${resolved.lon}`;
-            const results: { date: string; lo: number; hi: number; cond: string }[] = [];
+            const results: { date: string; lo: number; hi: number; cond: string, icon?: string }[] = [];
             const within14 = (Date.parse(segStart) - Date.now())/(24*3600*1000) <= 14 && (Date.parse(segEnd) - Date.now())/(24*3600*1000) <= 14;
             if (within14) {
               const daysNeeded = Math.min(14, Math.max(1, Math.ceil((Date.parse(segEnd) - Date.now())/(24*3600*1000)) + 1));
@@ -312,7 +312,9 @@ Chat (latest last):\n${context}`;
                 for (const d of fdays) {
                   const dateStr = String(d?.date || '');
                   if (dateStr >= segStart && dateStr <= segEnd) {
-                    results.push({ date: dateStr, lo: Math.round(d?.day?.mintemp_f ?? 0), hi: Math.round(d?.day?.maxtemp_f ?? 0), cond: String(d?.day?.condition?.text || '—') });
+                    const rawIcon = String(d?.day?.condition?.icon || '');
+                    const icon = rawIcon ? (rawIcon.startsWith('//') ? `https:${rawIcon}` : rawIcon) : undefined;
+                    results.push({ date: dateStr, lo: Math.round(d?.day?.mintemp_f ?? 0), hi: Math.round(d?.day?.maxtemp_f ?? 0), cond: String(d?.day?.condition?.text || '—'), icon });
                   }
                 }
               }
@@ -326,14 +328,23 @@ Chat (latest last):\n${context}`;
                   const data: any = await resp.json();
                   const day = data?.forecast?.forecastday?.[0]?.day;
                   if (day) {
-                    results.push({ date: dt, lo: Math.round(day?.mintemp_f ?? 0), hi: Math.round(day?.maxtemp_f ?? 0), cond: String(day?.condition?.text || '—') });
+                    const rawIcon = String(day?.condition?.icon || '');
+                    const icon = rawIcon ? (rawIcon.startsWith('//') ? `https:${rawIcon}` : rawIcon) : undefined;
+                    results.push({ date: dt, lo: Math.round(day?.mintemp_f ?? 0), hi: Math.round(day?.maxtemp_f ?? 0), cond: String(day?.condition?.text || '—'), icon });
                   }
                 }
               }
             }
             if (results.length > 0) {
-              const parts = results.map(r => `${r.date}: ${r.lo}°F–${r.hi}°F, ${r.cond}`);
-              weatherSummary = `Weather for ${resolved.name} (${segStart} → ${segEnd})\n` + parts.join('\n');
+              const parts: string[] = [];
+              parts.push(`Weather for ${resolved.name}`);
+              for (const r of results) {
+                parts.push(`${r.date}`);
+                parts.push(`${r.icon ? r.icon + ' ' : ''}${r.lo}°F–${r.hi}°F`);
+                parts.push(`${r.cond}`);
+                parts.push('');
+              }
+              weatherSummary = parts.join('\n').trim();
               // debug removed
               try { console.log('[WX] summary', weatherSummary); } catch {}
             }

@@ -272,8 +272,9 @@ export default function TripPlannerScreen() {
     if (!chatId) return;
     try {
       const nextVersion = ((trip?.version as number) ?? 0) + 1;
+      const clean = sanitizeItineraryForFirestore(itinerary);
       await updateDoc(doc(db, 'trips', chatId), {
-        itinerary,
+        itinerary: clean,
         version: nextVersion,
         updatedAt: Date.now(),
       } as any);
@@ -286,12 +287,24 @@ export default function TripPlannerScreen() {
   const saveItineraryQuick = async (next: ItineraryDay[]) => {
     if (!chatId) return;
     try {
+      const clean = sanitizeItineraryForFirestore(next);
       await updateDoc(doc(db, 'trips', chatId), {
-        itinerary: next,
+        itinerary: clean,
         updatedAt: Date.now(),
       } as any);
     } catch {}
   };
+
+  function sanitizeItineraryForFirestore(arr: ItineraryDay[]) {
+    return (arr || []).map((d) => {
+      const base: any = { date: String(d?.date || ''), items: Array.isArray(d?.items) ? d.items : [] };
+      if (d?.city && d.city.trim()) base.city = d.city.trim();
+      if (d?.resolved && typeof d.resolved.lat === 'number' && typeof d.resolved.lon === 'number' && d.resolved.name) {
+        base.resolved = { name: String(d.resolved.name), lat: Number(d.resolved.lat), lon: Number(d.resolved.lon) };
+      }
+      return base;
+    });
+  }
 
   const generateItinerary = async () => {
     if (!chatId) return;

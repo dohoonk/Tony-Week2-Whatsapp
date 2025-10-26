@@ -409,7 +409,7 @@ export default function TripPlannerScreen() {
         <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', marginTop: 12 }}>
           <AppButton title="Save" onPress={saveItinerary} variant="primary" size="sm" />
           <AppButton title="Post to chat" onPress={postToChat} variant="outline" size="sm" />
-          <AppButton title="Add day" onPress={addDay} variant="secondary" size="sm" />
+          <AppButton title="Add day" onPress={addDay} variant="outline" size="sm" />
         </View>
       </View>
       <View style={{ marginTop: 8 }}>

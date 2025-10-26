@@ -92,7 +92,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    res.status(200).json({ city: resolved.name, days: results });
+    res.status(200).json({ city: resolved.name, resolved, days: results });
   } catch (e: any) {
     const hasProject = !!process.env.FIREBASE_PROJECT_ID;
     const hasEmail = !!process.env.FIREBASE_CLIENT_EMAIL;

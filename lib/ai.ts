@@ -60,7 +60,7 @@ export async function shareDraft(chatId: string, tool: string, draftText: string
   }
 }
 
-export async function fetchTripWeather(chatId: string, city: string, start: string, end: string): Promise<{ city?: string; days: Array<{ date: string; lo: number; hi: number; cond: string }> }> {
+export async function fetchTripWeather(chatId: string, city: string, start: string, end: string): Promise<{ city?: string; resolved?: { name: string; lat: number; lon: number }; days: Array<{ date: string; lo: number; hi: number; cond: string; icon?: string }> }> {
   if (!API_BASE) throw new Error('Missing EXPO_PUBLIC_AI_API_URL');
   const token = await auth.currentUser?.getIdToken(true);
   if (!token) throw new Error('Missing auth token');

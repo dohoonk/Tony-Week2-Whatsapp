@@ -169,13 +169,26 @@ export default function TripPlannerScreen() {
       });
 
       const map: Record<string, { lo: number; hi: number; cond: string; icon?: string; city?: string }> = {};
+      const resolverCache: Record<string, { name: string; lat: number; lon: number }> = {};
       for (const seg of segments) {
         if (!seg.city) continue;
         const res = await fetchTripWeather(chatId, seg.city, seg.start, seg.end);
         const resolvedCity = String((res as any)?.city || seg.city || '');
+        if (res?.resolved?.name) {
+          resolverCache[seg.city] = { name: res.resolved.name, lat: res.resolved.lat, lon: res.resolved.lon };
+        }
         (res.days || []).forEach((d: any) => { map[d.date] = { lo: d.lo, hi: d.hi, cond: d.cond, icon: d.icon, city: resolvedCity }; });
       }
       setWeather(map);
+
+      // Write back resolved to days
+      const next = itinerary.map((day) => {
+        const c = day.city || '';
+        const resolved = c && resolverCache[c] ? resolverCache[c] : day.resolved;
+        return { ...day, resolved };
+      });
+      setItinerary(next);
+      saveItineraryQuick(next);
     } catch (e: any) {
       setWeatherWarn(String(e?.message || e));
     }

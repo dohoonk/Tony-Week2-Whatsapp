@@ -16,6 +16,7 @@ import { uploadChatImage } from '../../firebase/storageService';
 import { showLocalNotification } from '../../lib/notifications';
 import { fetchDraft, shareDraft } from '../../lib/ai';
 import PollCard from '../../components/PollCard';
+import AppButton from '../../components/AppButton';
 import { impactLight, selection } from '../../lib/haptics';
 
 type Message = {
@@ -147,7 +148,12 @@ export default function ChatRoomScreen() {
         navigation.setOptions?.({
           headerRight: () => (
             // @ts-ignore
-            <Text onPress={() => navigation.navigate('GroupSettings' as never, { chatId } as never)} style={{ color: '#0066cc', marginRight: 12 }}>Edit</Text>
+            <View style={{ marginRight: 8 }}>
+              <AppButton title="Edit" size="sm" variant="outline" onPress={() => { 
+                // @ts-ignore
+                navigation.navigate('GroupSettings' as never, { chatId } as never); 
+              }} />
+            </View>
           ),
         });
       }

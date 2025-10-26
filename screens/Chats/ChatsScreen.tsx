@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import AppText from '../../components/AppText';
+import EmptyState from '../../components/EmptyState';
 import AppCard from '../../components/AppCard';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -52,7 +53,7 @@ export default function ChatsScreen() {
       <FlatList
         data={chats}
         keyExtractor={(item) => item.id}
-        ListEmptyComponent={<AppText variant="meta" style={{ textAlign: 'center', color: '#666' }}>No chats yet</AppText>}
+        ListEmptyComponent={<EmptyState title="No chats yet" subtitle="Start a new chat from Friends" emoji="💬" />}
         renderItem={({ item }) => {
           let title = item.type === 'group' ? item.groupName ?? 'Group' : 'Direct chat';
           let avatar: any = null;

@@ -176,22 +176,10 @@ export default async function handler(req: any, res: any) {
       } catch {}
 
       const months = '(January|February|March|April|May|June|July|August|September|October|November|December)';
-      const isoDate = /(\d{4}-\d{2}-\d{2})/g;
-      const slashDate = /(\d{1,2}\/\d{1,2}\/\d{2,4})/g;
-      const monthDate = new RegExp(`${months}\\s+\\d{1,2}(?:,\\s*\\d{4})?`, 'gi');
-      const baseForRegex = (summaryText && summaryText.trim().length > 0) ? summaryText : raw;
-      const destinationMatch = baseForRegex.match(/(?:Destination\s*:\s*|to\s+|in\s+)([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3})/);
-      const dest = (llmCity && llmCity.length >= 2 ? llmCity : (destinationMatch?.[1] || 'Trip')) as string;
-      const dates: string[] = [];
-      const collect = (re: RegExp) => {
-        let m: RegExpExecArray | null;
-        const r = new RegExp(re.source, re.flags);
-        while ((m = r.exec(baseForRegex)) !== null) dates.push(m[1]);
-      };
-      collect(isoDate); collect(slashDate); collect(monthDate);
-      // Prefer extractor values; fallback to regex only if missing
-      const startStr = (llmStart || (dates[0] || '')) as string;
-      const endStr = (llmEnd || (dates[1] || (dates[0] || ''))) as string;
+      // Title: city from extractor (fallback 'Trip')
+      const dest = (llmCity && llmCity.length >= 1 ? llmCity : 'Trip') as string;
+      const startStr = (llmStart || '') as string;
+      const endStr = (llmEnd || '') as string;
       // Title: city only (dest)
       let title = `${dest}`;
 
@@ -205,7 +193,7 @@ export default async function handler(req: any, res: any) {
           const dt = new Date(y, m, d);
           return isNaN(dt.getTime()) ? null : dt.getTime();
         }
-        const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(s);
+      const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(s);
         if (slash) {
           const m = Math.max(1, Math.min(12, parseInt(slash[1], 10))) - 1;
           const d = Math.max(1, Math.min(31, parseInt(slash[2], 10)));

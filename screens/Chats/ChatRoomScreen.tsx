@@ -155,6 +155,7 @@ export default function ChatRoomScreen() {
               }} />
             </View>
           ),
+          headerRightContainerStyle: { paddingRight: 8, alignItems: 'center', justifyContent: 'center' },
         });
       }
       setReadMap(data?.readStatus || {});

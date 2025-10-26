@@ -340,7 +340,7 @@ Chat (latest last):\n${context}`;
               parts.push(`Weather for ${resolved.name}`);
               for (const r of results) {
                 parts.push(`${r.date}`);
-                parts.push(`${r.icon ? r.icon + ' ' : ''}${r.lo}°F–${r.hi}°F`);
+                parts.push(`${r.lo}°F–${r.hi}°F`);
                 parts.push(`${r.cond}`);
                 parts.push('');
               }

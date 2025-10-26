@@ -722,9 +722,9 @@ export default function ChatRoomScreen() {
                 )}
                 <View style={{ width: META_WIDTH, alignItems: 'flex-end' }}>
                   {unread > 0 ? (
-                    <AppText variant="meta" style={{ color: '#999' }}>{unread}</AppText>
-                  ) : <AppText variant="meta" style={{ color: 'transparent' }}>0</AppText>}
-                  {item.temp ? <AppText variant="meta" style={{ color: '#999' }}>sending…</AppText> : (timeStr ? <AppText variant="meta" style={{ color: '#666' }}>{timeStr}</AppText> : null)}
+                    <AppText variant="meta" style={{ color: '#999', fontSize: 11, lineHeight: 13 }}>{unread}</AppText>
+                  ) : <AppText variant="meta" style={{ color: 'transparent', fontSize: 11, lineHeight: 13 }}>0</AppText>}
+                  {item.temp ? <AppText variant="meta" style={{ color: '#999', fontSize: 11, lineHeight: 13 }}>sending…</AppText> : (timeStr ? <AppText variant="meta" style={{ color: '#666', fontSize: 11, lineHeight: 13 }}>{timeStr}</AppText> : null)}
                 </View>
               </TouchableOpacity>
             );
@@ -762,9 +762,9 @@ export default function ChatRoomScreen() {
                 </View>
                 <View style={{ width: META_WIDTH }}>
                   {unread > 0 ? (
-                    <AppText variant="meta" style={{ color: '#999', textAlign: 'right' }}>{unread}</AppText>
-                  ) : <AppText variant="meta" style={{ color: 'transparent' }}>0</AppText>}
-                  {timeStr ? <AppText variant="meta" style={{ color: '#666', textAlign: 'right' }}>{timeStr}</AppText> : null}
+                    <AppText variant="meta" style={{ color: '#999', textAlign: 'right', fontSize: 11, lineHeight: 13 }}>{unread}</AppText>
+                  ) : <AppText variant="meta" style={{ color: 'transparent', fontSize: 11, lineHeight: 13 }}>0</AppText>}
+                  {timeStr ? <AppText variant="meta" style={{ color: '#666', textAlign: 'right', fontSize: 11, lineHeight: 13 }}>{timeStr}</AppText> : null}
                 </View>
               </View>
             </TouchableOpacity>

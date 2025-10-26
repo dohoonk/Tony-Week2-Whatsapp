@@ -328,14 +328,34 @@ export default function TripPlannerScreen() {
       const { start, end } = computeStartEndIso();
       const header = `${title}${start || end ? ` (${start || '—'} → ${end || '—'})` : ''}`;
       const lines: string[] = [];
-      itinerary.forEach((d) => {
+
+      const toEmoji = (cond?: string): string => {
+        const s = String(cond || '').toLowerCase();
+        if (!s) return '';
+        if (s.includes('thunder')) return '⛈️';
+        if (s.includes('snow')) return '❄️';
+        if (s.includes('sleet')) return '🌨️';
+        if (s.includes('hail')) return '🌩️';
+        if (s.includes('rain') || s.includes('drizzle')) return '🌧️';
+        if (s.includes('shower')) return '🌦️';
+        if (s.includes('cloud')) return '☁️';
+        if (s.includes('fog') || s.includes('mist') || s.includes('haze')) return '🌫️';
+        if (s.includes('clear') || s.includes('sun')) return '☀️';
+        if (s.includes('overcast')) return '☁️';
+        return 'ℹ️';
+      };
+
+      itinerary.forEach((d, idx) => {
         const wx = weather[d.date];
+        const emoji = toEmoji(wx?.cond);
         const cityLabel = (d.city || d.resolved?.name || wx?.city || '').trim();
-        const meta = wx
-          ? `${cityLabel ? `${cityLabel}: ` : ''}${wx.lo}°F–${wx.hi}°F, ${wx.cond}`
-          : (cityLabel ? `${cityLabel}` : '');
-        lines.push(meta ? `${d.date} — ${meta}` : `${d.date}`);
-        (d.items || []).forEach((it) => lines.push(`- ${it}`));
+        const dayHeader = `Day ${idx + 1} — ${d.date}${cityLabel ? ` (${cityLabel})` : ''}`;
+        lines.push(dayHeader);
+        if (wx) {
+          lines.push(`  ${emoji} ${wx.lo}°F–${wx.hi}°F, ${wx.cond}`);
+        }
+        (d.items || []).forEach((it) => lines.push(`  - ${it}`));
+        lines.push('');
       });
       const body = lines.length > 0 ? lines.join('\n') : 'No items yet.';
       const text = `${header}\n${body}`;

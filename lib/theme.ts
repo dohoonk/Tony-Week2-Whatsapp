@@ -1,4 +1,5 @@
 import { useColorScheme } from 'react-native';
+import { useThemeMode } from '../contexts/ThemeContext';
 
 // Light mode base colors
 export const colors = {
@@ -33,7 +34,13 @@ export const darkColors = {
 export type ThemeColors = typeof colors;
 
 export function useThemeColors(): ThemeColors {
-  const scheme = useColorScheme();
+  const system = useColorScheme();
+  let scheme = system;
+  try {
+    const { mode } = useThemeMode();
+    if (mode === 'light') scheme = 'light';
+    if (mode === 'dark') scheme = 'dark';
+  } catch {}
   return scheme === 'dark' ? (darkColors as ThemeColors) : (colors as ThemeColors);
 }
 

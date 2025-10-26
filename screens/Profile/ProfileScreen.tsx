@@ -10,6 +10,7 @@ import { db } from '../../firebase/config';
 import { signOut } from '../../firebase/authService';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadUserAvatar } from '../../firebase/storageService';
+import { useThemeMode } from '../../contexts/ThemeContext';
 
 export default function ProfileScreen() {
   const uid = auth.currentUser?.uid!;
@@ -19,6 +20,7 @@ export default function ProfileScreen() {
   const [photoURL, setPhotoURL] = useState<string | undefined>(undefined);
   const [localAvatar, setLocalAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { mode, setMode } = useThemeMode();
 
   const load = async () => {
     if (!uid) return;
@@ -100,6 +102,13 @@ export default function ProfileScreen() {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
         <AppButton title={loading ? 'Saving...' : 'Save'} onPress={onSave} disabled={loading} loading={loading} variant="primary" />
         <AppButton title="Log out" onPress={onLogout} variant="destructive" />
+      </View>
+      <View style={{ height: 16 }} />
+      <AppText variant="title" style={{ marginBottom: 8 }}>Appearance</AppText>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <AppButton title={`System${mode==='system'?' ✓':''}`} onPress={() => setMode('system')} variant="outline" size="sm" />
+        <AppButton title={`Light${mode==='light'?' ✓':''}`} onPress={() => setMode('light')} variant="outline" size="sm" />
+        <AppButton title={`Dark${mode==='dark'?' ✓':''}`} onPress={() => setMode('dark')} variant="outline" size="sm" />
       </View>
     </View>
   );

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, ActivityIndicator, Text, View, GestureResponderEvent } from 'react-native';
+import { useThemeColors } from '../lib/theme';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'destructive';
 type Size = 'sm' | 'md';
@@ -19,11 +20,12 @@ export default function AppButton({
   disabled?: boolean;
   loading?: boolean;
 }) {
+  const c = useThemeColors();
   const palette = {
-    primary: { bg: '#2563EB', text: '#FFFFFF', border: '#2563EB' },
-    secondary: { bg: '#E5E7EB', text: '#111827', border: '#E5E7EB' },
-    outline: { bg: 'transparent', text: '#2563EB', border: '#2563EB' },
-    destructive: { bg: '#EF4444', text: '#FFFFFF', border: '#EF4444' },
+    primary: { bg: c.primary, text: '#FFFFFF', border: c.primary },
+    secondary: { bg: c.fill, text: c.textStrong, border: c.line },
+    outline: { bg: 'transparent', text: c.primary, border: c.primary },
+    destructive: { bg: c.error, text: '#FFFFFF', border: c.error },
   }[variant];
 
   const padV = size === 'sm' ? 8 : 10;

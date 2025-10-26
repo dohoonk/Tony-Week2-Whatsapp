@@ -242,7 +242,7 @@ export default function FriendsScreen() {
         extraData={presenceMap}
         ListEmptyComponent={<EmptyState title="No incoming requests" emoji="📨" />}
         renderItem={({ item }) => (
-          <AppCard style={{ marginVertical: 6 }}>
+          <AppCard style={{ marginVertical: 8 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <Image
@@ -275,7 +275,7 @@ export default function FriendsScreen() {
         extraData={presenceMap}
         ListEmptyComponent={<EmptyState title="No outgoing requests" emoji="📤" />}
         renderItem={({ item }) => (
-          <AppCard style={{ marginVertical: 6 }}>
+          <AppCard style={{ marginVertical: 8 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <Image
@@ -314,7 +314,7 @@ export default function FriendsScreen() {
             }}
             activeOpacity={0.85}
           >
-            <AppCard style={{ marginVertical: 6 }}>
+            <AppCard style={{ marginVertical: 8 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <Image

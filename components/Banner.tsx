@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { colors, radius, spacing } from '../lib/theme';
+import { colors, radius, spacing, shadow } from '../lib/theme';
 
 type Kind = 'info' | 'success' | 'warning' | 'error';
 
@@ -19,7 +19,7 @@ const fg: Record<Kind, string> = {
 
 export default function Banner({ kind = 'info', children }: { kind?: Kind; children: React.ReactNode }) {
   return (
-    <View style={{ backgroundColor: bg[kind], paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.md }}>
+    <View style={[{ backgroundColor: bg[kind], paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.md, borderWidth: 1, borderColor: '#E5E7EB' }, shadow.subtle]}>
       <Text style={{ color: fg[kind] }}>{children}</Text>
     </View>
   );

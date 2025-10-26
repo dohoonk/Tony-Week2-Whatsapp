@@ -86,7 +86,7 @@ export default function ChatsScreen() {
           }
           return (
             <TouchableOpacity onPress={() => navigation.navigate('ChatRoom', { chatId: item.id })} activeOpacity={0.85}>
-              <AppCard style={{ marginVertical: 6 }}>
+              <AppCard style={{ marginVertical: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   {item.type === 'group' ? (
                     <GroupAvatar uris={groupMemberPhotos || []} size={40} />

@@ -278,7 +278,7 @@ export default function TripPlannerScreen() {
           data={itinerary}
           keyExtractor={(_, i) => String(i)}
           renderItem={({ item, index }) => (
-            <AppCard style={{ marginTop: 8 }}>
+            <AppCard style={{ marginTop: 12 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <AppText>{item?.date || `Day ${index + 1}`}</AppText>
                 <TouchableOpacity onPress={() => removeDay(index)}><Text style={{ color: '#EF4444' }}>Remove day</Text></TouchableOpacity>

@@ -31,7 +31,18 @@ export default function AppNavigator() {
       })}
     >
       <Tab.Screen name="Chats" component={ChatsStack} options={{ headerShown: false }} />
-      <Tab.Screen name="Trips" component={TripsStack} options={{ headerShown: false }} />
+      <Tab.Screen
+        name="Trips"
+        component={TripsStack}
+        options={{ headerShown: false }}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            // Always land on TripsHome when tapping the tab
+            // @ts-ignore
+            navigation.navigate('Trips', { screen: 'TripsHome' });
+          },
+        })}
+      />
       <Tab.Screen name="Friends" component={FriendsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

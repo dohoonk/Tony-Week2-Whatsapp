@@ -807,7 +807,7 @@ export default function ChatRoomScreen() {
       />
       {chatMeta?.tripId ? (
         <TouchableOpacity
-          onPress={() => (navigation as any).navigate('Trips', { screen: 'TripPlanner', params: { chatId } })}
+          onPress={() => (navigation as any).navigate('Trips', { screen: 'TripsHome' })}
           activeOpacity={0.7}
         >
           <Text style={{ textAlign: 'center', color: '#2563EB', marginBottom: 4 }}>

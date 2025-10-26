@@ -157,8 +157,8 @@ export default function TripsScreen() {
         {item.notes ? <Text style={{ color: c.text, marginTop: 4 }} numberOfLines={3}>{item.notes}</Text> : null}
         <Text style={{ color: c.textSubtle, marginTop: 6 }}>Members: {names || (item.members || []).length}</Text>
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
-          <AppButton title="Open planner" variant="outline" size="sm" onPress={() => nav.navigate('TripPlanner', { chatId: item.chatId })} />
-          <AppButton title="Edit" variant="secondary" size="sm" onPress={() => {
+          <AppButton title="Trip Planner" variant="outline" size="sm" onPress={() => nav.navigate('TripPlanner', { chatId: item.chatId })} />
+          <AppButton title="Edit" variant="outline" size="sm" onPress={() => {
             setEditTrip(item);
             setEditTitle(item.title || '');
             setEditNotes(item.notes || '');
@@ -167,7 +167,7 @@ export default function TripsScreen() {
             setEditStart(sTs ? `${String(sTs.getMonth() + 1).padStart(2,'0')}/${String(sTs.getDate()).padStart(2,'0')}/${sTs.getFullYear()}` : '');
             setEditEnd(eTs ? `${String(eTs.getMonth() + 1).padStart(2,'0')}/${String(eTs.getDate()).padStart(2,'0')}/${eTs.getFullYear()}` : '');
           }} />
-          <AppButton title="Archive" variant="ghost" size="sm" onPress={async () => {
+          <AppButton title="Archive" variant="outline" size="sm" onPress={async () => {
             try {
               await updateDoc(doc(db, 'trips', item.id), { archived: true, updatedAt: Date.now(), updatedBy: auth.currentUser?.uid || 'system' } as any);
             } catch {}

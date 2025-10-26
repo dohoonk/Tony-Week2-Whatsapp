@@ -133,23 +133,15 @@ export default function TripPlannerScreen() {
         return;
       }
 
-      // Infer default city from title
-      const defaultCity = weatherCity;
-      // Heuristic: parse city from day items; carry forward last known city
+      // City precedence: day.city → carry-forward → title city (weatherCity)
+      const defaultCity = weatherCity || '';
       const cityForDate: Record<string, string> = {};
-      let currentCity = defaultCity || '';
-      const cityRe = /(arrive|in|at|to)\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2})/i;
+      let carryCity = defaultCity;
       dates.forEach((dt) => {
         const day = (itinerary || []).find((d) => d.date === dt);
-        let found = '';
-        if (day) {
-          for (const raw of (day.items || [])) {
-            const m = cityRe.exec(String(raw || ''));
-            if (m && m[2]) { found = m[2].trim(); break; }
-          }
-        }
-        if (found) currentCity = found;
-        cityForDate[dt] = currentCity || (defaultCity || '');
+        const chosen = (day?.city || '').trim() || carryCity || defaultCity;
+        cityForDate[dt] = chosen;
+        carryCity = chosen;
       });
 
       // Group consecutive dates by city to minimize API calls

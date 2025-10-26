@@ -119,22 +119,12 @@ export default function TripsScreen() {
         <Text style={{ fontWeight: '600', color: c.textStrong }}>{item.title || 'Reminder'}</Text>
         <Text style={{ color: c.textSubtle, marginTop: 4 }}>When: {tsStr}</Text>
         <Text style={{ color: c.textSubtle, marginTop: 2 }}>Status: {item.status || 'scheduled'}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 }}>
-          <TouchableOpacity onPress={() => adjust(item.id, -15 * 60 * 1000)}>
-            <Text style={{ color: c.primary }}>-15m</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => adjust(item.id, +15 * 60 * 1000)}>
-            <Text style={{ color: c.primary }}>+15m</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={async () => { try { await updateDoc(doc(db, 'reminders', item.id), { status: 'completed' } as any); } catch {} }}>
-            <Text style={{ color: c.primary }}>Mark completed</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => save(item)}>
-            <Text style={{ color: c.primary }}>Save</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => cancel(item)}>
-            <Text style={{ color: c.error }}>Cancel</Text>
-          </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+          <AppButton title="-15m" variant="outline" size="sm" onPress={() => adjust(item.id, -15 * 60 * 1000)} />
+          <AppButton title="+15m" variant="outline" size="sm" onPress={() => adjust(item.id, +15 * 60 * 1000)} />
+          <AppButton title="Mark completed" variant="outline" size="sm" onPress={async () => { try { await updateDoc(doc(db, 'reminders', item.id), { status: 'completed' } as any); } catch {} }} />
+          <AppButton title="Save" variant="primary" size="sm" onPress={() => save(item)} />
+          <AppButton title="Cancel" variant="destructive" size="sm" onPress={() => cancel(item)} />
         </View>
       </View>
     );

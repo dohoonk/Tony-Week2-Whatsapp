@@ -166,7 +166,7 @@ Chat (latest last):\n${context}`;
             let anyResp: any = null;
             try {
               console.log('[WX] extractorKeyPresent', !!openaiKeyWx);
-              anyResp = await client.responses.create({ model: 'gpt-4.1-mini', input: extractor });
+              anyResp = await client.responses.create({ model: 'gpt-4.1-mini', input: extractor, text: { format: 'json' } });
             } catch (e: any) {
               try { console.log('[WX] extractorError', e?.message || e); } catch {}
             }

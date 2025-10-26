@@ -1,26 +1,27 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { colors, radius, spacing, shadow } from '../lib/theme';
+import { useThemeColors, radius, spacing, shadow } from '../lib/theme';
 
 type Kind = 'info' | 'success' | 'warning' | 'error';
 
-const bg: Record<Kind, string> = {
+const lightBg: Record<Kind, string> = {
   info: '#EFF6FF',
   success: '#ECFDF5',
   warning: '#FFFBEB',
   error: '#FEF2F2',
 };
-const fg: Record<Kind, string> = {
-  info: colors.info,
-  success: colors.success,
-  warning: colors.warning,
-  error: colors.error,
+const darkBg: Record<Kind, string> = {
+  info: '#0B1220',
+  success: '#052e24',
+  warning: '#2b210a',
+  error: '#2a0f10',
 };
 
 export default function Banner({ kind = 'info', children }: { kind?: Kind; children: React.ReactNode }) {
+  const palette = useThemeColors();
   return (
-    <View style={[{ backgroundColor: bg[kind], paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.md, borderWidth: 1, borderColor: '#E5E7EB' }, shadow.subtle]}>
-      <Text style={{ color: fg[kind] }}>{children}</Text>
+    <View style={[{ backgroundColor: (palette.surface === '#1F2937' ? darkBg[kind] : lightBg[kind]), paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.md, borderWidth: 1, borderColor: palette.line }, shadow.subtle]}>
+      <Text style={{ color: (palette as any)[kind] ?? palette.info }}>{children}</Text>
     </View>
   );
 }

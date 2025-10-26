@@ -38,6 +38,9 @@ export default async function handler(req: any, res: any) {
     const decoded = await verifyIdToken(token);
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const { chatId, tool, prompt } = body as any;
+    if (tool === 'weather' || tool === 'auto') {
+      try { console.log('[WX] received', { tool, chatId }); } catch {}
+    }
     if (!chatId || !tool) { res.status(400).json({ error: 'chatId and tool are required' }); return; }
 
     const db = getAdminDb();

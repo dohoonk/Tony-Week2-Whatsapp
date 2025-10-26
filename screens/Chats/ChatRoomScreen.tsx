@@ -29,6 +29,7 @@ type Message = {
 
 export default function ChatRoomScreen() {
   const BUBBLE_MAX = Math.round(Dimensions.get('window').width * 0.7);
+  const META_WIDTH = 46; // fixed width to align unread/time across rows
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight ? useHeaderHeight() : 0;
   const route = useRoute<RouteProp<ChatsStackParamList, 'ChatRoom'>>();
@@ -714,15 +715,17 @@ export default function ChatRoomScreen() {
             const isLastRead = lastReadMessageId && item.id === lastReadMessageId;
             return (
               <TouchableOpacity onLongPress={() => setMenuForId(item.id)} activeOpacity={0.9} style={{ marginBottom: 8, alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
-                {unread > 0 ? (
-                  <AppText variant="meta" style={{ color: '#999' }}>{unread}</AppText>
-                ) : null}
-                {item.temp ? <AppText variant="meta" style={{ color: '#999' }}>sending…</AppText> : (timeStr ? <AppText variant="meta" style={{ color: '#666' }}>{timeStr}</AppText> : null)}
                 {item.imageUrl ? (
                   <Image source={{ uri: item.imageUrl }} style={{ width: Math.min(200, BUBBLE_MAX), height: 200, borderRadius: 8 }} />
                 ) : (
                   <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1, color: isFirstUnread ? '#10B981' : (isLastRead ? '#FF3B30' : undefined) }}>{item.text}</Text>
                 )}
+                <View style={{ width: META_WIDTH, alignItems: 'flex-end' }}>
+                  {unread > 0 ? (
+                    <AppText variant="meta" style={{ color: '#999' }}>{unread}</AppText>
+                  ) : <AppText variant="meta" style={{ color: 'transparent' }}>0</AppText>}
+                  {item.temp ? <AppText variant="meta" style={{ color: '#999' }}>sending…</AppText> : (timeStr ? <AppText variant="meta" style={{ color: '#666' }}>{timeStr}</AppText> : null)}
+                </View>
               </TouchableOpacity>
             );
           }
@@ -757,10 +760,12 @@ export default function ChatRoomScreen() {
                     <Text style={{ backgroundColor: '#eee', borderRadius: 8, padding: 8, maxWidth: BUBBLE_MAX, flexShrink: 1, color: isFirstUnread ? '#10B981' : ((lastReadMessageId && item.id === lastReadMessageId) ? '#FF3B30' : undefined) }}>{item.text}</Text>
                   )}
                 </View>
-                {unread > 0 ? (
-                  <AppText variant="meta" style={{ color: '#999' }}>{unread}</AppText>
-                ) : null}
-                {timeStr ? <AppText variant="meta" style={{ color: '#666' }}>{timeStr}</AppText> : null}
+                <View style={{ width: META_WIDTH }}>
+                  {unread > 0 ? (
+                    <AppText variant="meta" style={{ color: '#999', textAlign: 'right' }}>{unread}</AppText>
+                  ) : <AppText variant="meta" style={{ color: 'transparent' }}>0</AppText>}
+                  {timeStr ? <AppText variant="meta" style={{ color: '#666', textAlign: 'right' }}>{timeStr}</AppText> : null}
+                </View>
               </View>
             </TouchableOpacity>
           );

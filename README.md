@@ -12,6 +12,14 @@ Key needs:
 
 A cross-platform chat app built with Expo (React Native) and Firebase. Supports email auth, friends with requests, direct/group chats, optimistic messaging with offline outbox, realtime presence, unread divider, and foreground notifications.
 
+## Quality & DX goals
+- Clear, comprehensive README
+- Step-by-step setup instructions
+- Architecture overview with diagrams
+- Environment variables template
+- Easy to run locally
+- Code is well-commented
+
 ## Monorepo Layout
 ```
 root/

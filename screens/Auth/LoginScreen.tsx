@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, Alert, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { makeRedirectUri } from 'expo-auth-session';
 import { auth, db } from '../../firebase/config';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { signInWithEmailAndPassword } from '../../firebase/authService';
+import AppButton from '../../components/AppButton';
 import { doc, setDoc } from 'firebase/firestore';
 
 export default function LoginScreen() {
@@ -87,10 +88,20 @@ export default function LoginScreen() {
         secureTextEntry
         style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 16 }}
       />
-      <Button title={loading ? 'Signing in...' : 'Sign In'} onPress={onLogin} disabled={loading} />
-      <View style={{ height: 12 }} />
-      <TouchableOpacity onPress={onGoogle} disabled={googleLoading} style={{ alignSelf: 'center' }}>
-        <Text style={{ color: '#007AFF' }}>{googleLoading ? 'Signing in with Google…' : 'Sign in with Google'}</Text>
+      <AppButton title={loading ? 'Signing in…' : 'Sign In'} onPress={onLogin} loading={loading} variant="primary" />
+      <View style={{ height: 16 }} />
+      <TouchableOpacity
+        onPress={onGoogle}
+        disabled={googleLoading}
+        accessibilityRole="button"
+        accessibilityLabel="Sign in with Google"
+        style={{ alignSelf: 'center', width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: '#ccc', alignItems: 'center', justifyContent: 'center' }}
+      >
+        {googleLoading ? (
+          <ActivityIndicator />
+        ) : (
+          <Image source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png' }} style={{ width: 18, height: 18 }} />
+        )}
       </TouchableOpacity>
     </View>
   );

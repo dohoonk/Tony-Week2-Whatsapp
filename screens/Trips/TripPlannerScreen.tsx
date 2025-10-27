@@ -427,7 +427,7 @@ export default function TripPlannerScreen() {
             <AppCard style={{ marginTop: 12 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <AppText>{item?.date || `Day ${index + 1}`}</AppText>
-                <TouchableOpacity onPress={() => removeDay(index)}><Text style={{ color: '#EF4444' }}>Remove day</Text></TouchableOpacity>
+                <AppButton title="Remove day" variant="destructive" size="xs" onPress={() => removeDay(index)} />
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
                 <Text style={{ color: c.textSubtle, width: 40 }}>City</Text>
@@ -457,9 +457,9 @@ export default function TripPlannerScreen() {
                 </View>
               ) : null}
               {(item?.items || []).map((it, idx) => (
-                <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, gap: 8 }}>
                   <AppText style={{ color: c.text, flexShrink: 1 }}>• {it}</AppText>
-                  <TouchableOpacity onPress={() => removeItem(index, idx)}><Text style={{ color: c.error }}>Remove</Text></TouchableOpacity>
+                  <AppButton title="Remove" variant="destructive" size="xs" onPress={() => removeItem(index, idx)} />
                 </View>
               ))}
               <AddItemRow onAdd={(txt) => addItem(index, txt)} />

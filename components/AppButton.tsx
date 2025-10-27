@@ -3,7 +3,7 @@ import { Pressable, ActivityIndicator, Text, View, GestureResponderEvent } from 
 import { useThemeColors } from '../lib/theme';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'destructive' | 'ghost';
-type Size = 'sm' | 'md';
+type Size = 'xs' | 'sm' | 'md';
 
 export default function AppButton({
   title,
@@ -30,9 +30,9 @@ export default function AppButton({
   }[variant];
 
   const isGhost = variant === 'ghost';
-  const padV = isGhost ? 0 : (size === 'sm' ? 8 : 10);
-  const padH = isGhost ? 0 : (size === 'sm' ? 12 : 14);
-  const fontSize = size === 'sm' ? 14 : 16;
+  const padV = isGhost ? 0 : (size === 'xs' ? 4 : size === 'sm' ? 8 : 10);
+  const padH = isGhost ? 0 : (size === 'xs' ? 8 : size === 'sm' ? 12 : 14);
+  const fontSize = size === 'xs' ? 12 : (size === 'sm' ? 14 : 16);
   const opacity = disabled ? 0.6 : 1;
 
   return (

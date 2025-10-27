@@ -100,7 +100,10 @@ export default function LoginScreen() {
         {googleLoading ? (
           <ActivityIndicator />
         ) : (
-          <Image source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png' }} style={{ width: 18, height: 18 }} />
+          <Image
+            source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/48px-Google_%22G%22_Logo.svg.png' }}
+            style={{ width: 18, height: 18, resizeMode: 'contain' }}
+          />
         )}
       </TouchableOpacity>
     </View>

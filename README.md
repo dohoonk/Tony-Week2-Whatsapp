@@ -12,14 +12,6 @@ Key needs:
 
 A cross-platform chat app built with Expo (React Native) and Firebase. Supports email auth, friends with requests, direct/group chats, optimistic messaging with offline outbox, realtime presence, unread divider, and foreground notifications.
 
-## Quality & DX goals
-- Clear, comprehensive README
-- Step-by-step setup instructions
-- Architecture overview with diagrams
-- Environment variables template
-- Easy to run locally
-- Code is well-commented
-
 ## Monorepo Layout
 ```
 root/
@@ -27,6 +19,71 @@ root/
   app/api/        # Vercel Serverless (Node runtime)
   app/shared/     # Shared types
 ```
+
+## Architecture overview
+
+Client (Expo React Native)
+- Firebase Auth (email, Google); presence writes on login/foreground
+- Firestore for users, chats, messages, polls, reminders, trips
+- Storage for image messages/avatars
+- NetInfo for connectivity; optimistic UI with offline outbox; foreground notifications
+- Trip Planner: itinerary editing, weather refresh, and share-to-chat
+
+Server (Vercel Serverless, Node runtime)
+- Verifies Firebase ID token via Admin SDK on every request and authorizes chat membership
+- Endpoints: `/api/ai/draft`, `/api/ai/share`, `/api/tools/tripWeather`
+- Integrations: OpenAI GPT‑4.1 (generation + extractors), WeatherAPI.com (forecast)
+- Writes privileged updates (trips/polls/reminders) to Firestore
+
+RAG flow (TripMate AI)
+1) Retrieve last 200 text messages (exclude images/AI/system)
+2) Summarize context when needed (e.g., trip) to a compact planning summary
+3) Intent extraction returns strict JSON (city, dates, poll options, etc.)
+4) Call deterministic tools/APIs (e.g., WeatherAPI); normalize dates
+5) Return a draft to the client; Share persists; Discard leaves no trace
+
+## Architecture diagrams
+
+High-level components
+```mermaid
+flowchart LR
+  RN[Expo React Native App]\n(Chats, Trip Planner) -- Firebase ID token --> API[Vercel Serverless API]
+  RN -- Firestore SDK --> FS[(Firestore)]
+  RN -- Storage SDK --> ST[(Firebase Storage)]
+  API -- Admin SDK (verify, reads/writes) --> FS
+  API -- OpenAI GPT-4.1 --> LLM[(OpenAI)]
+  API -- WeatherAPI.com --> WX[(Weather)]
+```
+
+AI draft/share sequence
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant RN as Expo App
+  participant API as Vercel API
+  participant FB as Firebase Admin/Firestore
+  participant LLM as OpenAI
+  participant WX as WeatherAPI
+  U->>RN: Long-press → TripMate AI
+  RN->>API: POST /api/ai/draft (Bearer ID token)
+  API->>FB: Verify token + membership
+  API->>FB: Fetch last 200 messages (RAG)
+  API->>LLM: Summarize / extract intent (strict JSON)
+  API->>WX: (if weather) segment forecast
+  API-->>RN: Draft text (plain)
+  U->>RN: Share
+  RN->>API: POST /api/ai/share (tool, draft)
+  API->>FB: Write trip/poll/reminder + ai_response
+```
+
+## Code conventions
+
+- Files/structure: feature-oriented; screens under `app/screens/*`, shared UI under `app/components/*`, libs under `app/lib/*`
+- Naming: components PascalCase, hooks/use* camelCase, types PascalCase, constants UPPER_SNAKE
+- TypeScript: prefer explicit types on exports/public APIs; avoid `any`; narrow with guards
+- Comments: only for non-obvious rationale, invariants, security/perf caveats; avoid noise
+- UI: consistent primitives (`AppButton`, `AppCard`, `AppText`, `FormField`, `Banner`); theme-aware colors; dark mode
+- Network/API: every server call includes Firebase ID token; server re-verifies and checks membership
 
 ## 1) Prerequisites
 - macOS with Xcode (for iOS Simulator)

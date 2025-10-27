@@ -47,7 +47,7 @@ RAG flow (TripMate AI)
 High-level components
 ```mermaid
 flowchart LR
-  RN[Expo React Native App (Chats/Trip Planner)] -- Firebase ID token --> API[Vercel Serverless API]
+  RN[Expo React Native App — Chats & Trip Planner] -- Firebase ID token --> API[Vercel Serverless API]
   RN -- Firestore SDK --> FS[(Firestore)]
   RN -- Storage SDK --> ST[(Firebase Storage)]
   API -- Admin SDK (verify, reads/writes) --> FS
